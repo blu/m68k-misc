@@ -15,6 +15,8 @@ tx1_h	equ 60
 COLUMNS	equ 64
 LINES	equ 48
 
+SPINS	equ $10000
+
 ; don't use align lest intelHex loading breaks; use pad_code instead
 
 ; contrary to what vasm docs say, macro definition order is "<name> macro"
@@ -34,21 +36,101 @@ endm
 	move.l	a1,usp
 	andi.w	#$dfff,sr
 
-	; plot graph paper on channel B
-	movem.l	patt,d0-d3
-	movem.l patt+4*4,d4-d7
-	movea.l	#ea_text1,a0
-	movea.l	#ea_texa1,a1
-screen:
-	movem.l	d0-d3,(a0)
-	movem.l	d4-d7,(a1)
-	adda.l	#$4*4,a0 ; emits lea (an,16),an
-	adda.l	#$4*4,a1
-	cmpa.l	#ea_text1+tx1_w*tx1_h,a0
-	blt	screen
+	; plot graph paper on channel B -- glyphs
+	lea.l	pattern,a0
+	jsr	clear_text1
+again:
+	move.b	#18,d5
+	movea.l	#ea_texa1,a3
+forward:
+	; plot graph paper on channel B -- colors
+	lea.l	pattern+4*4,a0
+	jsr	clear_texa1
 
-	; test memset on channel B
-	movea.l	#ea_texa1,a1
+	jsr	frame
+	adda.l	#1,a3
+
+	move.l	#SPINS,d0
+	jsr	spin
+
+	subi.b	#1,d5
+	bne	forward
+
+	move.b	#18,d5
+reverse:
+	; plot graph paper on channel B -- colors
+	lea.l	pattern+4*4,a0
+	jsr	clear_texa1
+
+	suba.l	#1,a3
+	jsr	frame
+
+	move.l	#SPINS,d0
+	jsr	spin
+
+	subi.b	#1,d5
+	bne	reverse
+
+	bra	again
+
+	; some day
+	clr.w	d0 ; syscall_exit
+	trap	#15
+
+;	pad_code 2
+pattern:
+	dc.l	'0123', '4567', '89ab', 'cdef'
+	dc.l	$42434243, $42434243, $42434243, $42434243
+
+; memset a buffer to a given value; only aligned writes
+; a0: target
+; d0: content; value splatted to long word
+; d1: length
+; returns: a0: last_written_address + 1
+; clobbers: d2
+memset:
+	move.l	a0,d2
+
+	btst	#0,d2
+	beq	Lhead0
+	move.b	d0,(a0)+
+	addi.l	#1,d2
+	subi.l	#1,d1
+Lhead0:
+	cmp	#2,d1
+	bcs	Ltail1
+
+	btst	#1,d2
+	beq	Lhead1
+	move.w	d0,(a0)+
+	addi.l	#2,d2
+	subi.l	#2,d1
+Lhead1:
+	cmp	#4,d1
+	bcs	Ltail0
+
+	move.l	d1,d2
+	and.l	#-4,d2
+Lloop4:
+	move.l	#$40404040,(a0)+ ; src: d0
+	subi.l	#4,d2
+	bne	Lloop4
+Ltail0:
+	btst	#1,d1
+	beq	Ltail1
+	move.w	d0,(a0)+
+Ltail1:
+	btst	#0,d1
+	beq	Ltail2
+	move.b	d0,(a0)+
+Ltail2:
+	rts
+
+; plot one memset test frame on channel B
+; a3: where to start the plot
+; clobbers: d0-d4,a0-a2
+frame:
+	movea.l	a3,a1
 	movea.l	#ea_texa1+tx1_w*LINES,a2
 	moveq	#1,d3
 	moveq	#1,d4
@@ -59,64 +141,47 @@ line:
 	jsr	memset
 
 	cmpi.w	#LINES/(COLUMNS-LINES),d3
-	bne	param0
+	bne	param
 	clr.w	d3
 	adda.w	#1,a1
-param0:
+param:
 	addi.w	#1,d3
 	addi.w	#1,d4
 
 	adda.w	#tx1_w,a1
 	cmpa.l	a2,a1
 	blt	line
+	rts
 
-	; police-lights on channel A border
-	clr.l	d2 ; save-buf index; emits moveq
-	lea.l	save_buf,a1 ; emits pc-rel
-	move.l	#$808080,d0
-	movea.l	#ea_vicky,a0
-loop:
-	move.l	d0,($8,a0) ; set border color
-	addi.l	#1,d0
-	move.l	($8,a0),d1 ; read back color
-	; store to buffer just because
-	move.l	d1,(a1,d2.w*4)
-	addi.b	#1,d2
-	andi.b	#3,d2
-	bra	loop ; emits bras
+; clear text channel B
+; a0: pattern ptr
+; clobbers d0, d1, d2, d3, d4, d5, d6, d7
+clear_text1:
+	movem.l	(a0),d0-d3
+	movea.l	#ea_text1,a0
+Lloop:
+	movem.l	d0-d3,(a0)
+	adda.l	#$4*4,a0 ; emits lea (an,16),an
+	cmpa.l	#ea_text1+tx1_w*tx1_h,a0
+	blt	Lloop
+	rts
 
-	; some day
-	clr.w	d0 ; syscall_exit
-	trap	#15
+; clear attr channel B
+; a0: pattern ptr
+; clobbers d0, d1, d2, d3, d4, d5, d6, d7
+clear_texa1:
+	movem.l (a0),d0-d3
+	movea.l	#ea_texa1,a0
+LLloop:
+	movem.l	d0-d3,(a0)
+	adda.l	#$4*4,a0 ; emits lea (an,16),an
+	cmpa.l	#ea_texa1+tx1_w*tx1_h,a0
+	blt	LLloop
+	rts
 
-	pad_code 3
-patt:
-	dc.l	'0123', '4567', '89ab', 'cdef'
-	dc.l	$42434243, $42434243, $42434243, $42434243
-
-save_buf:
-	ds.l	4
-
-; memset a buffer to a given value; does unaligned writes
-; a0: target
-; d0: content; value splatted to long word
-; d1: length
-; clobbers: d2
-memset:
-	move.l	d1,d2
-	and.l	#-4,d2
-	beq	Ltail0
-Lloop4:
-	move.l	d0,(a0)+
-	subi.l	#4,d2
-	bne	Lloop4
-Ltail0:
-	btst	#1,d1
-	beq	Ltail1
-	move.w	d0,(a0)+
-Ltail1:
-	btst	#0,d1
-	beq	Ltail2
-	move.b	d0,(a0)
-Ltail2:
+; spinloop
+; d0: number of cycles
+spin:
+	subi.l	#1,d0
+	bne	spin
 	rts

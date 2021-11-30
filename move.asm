@@ -12,6 +12,8 @@ tx0_h	equ 56
 tx1_w	equ 80
 tx1_h	equ 60
 
+SPINS	equ $4000
+
 ; don't use align lest intelHex loading breaks; use pad_code instead
 
 ; contrary to what vasm docs say, macro definition order is "<name> macro"
@@ -44,7 +46,7 @@ move_dn:
 	moveq.l	#17,d1
 	jsr	memset
 
-	move.l	#10000,d0
+	move.l	#SPINS,d0
 	jsr	spin
 
 	adda.w	#tx1_w,a2
@@ -63,7 +65,7 @@ move_up:
 	moveq.l	#17,d1
 	jsr	memset
 
-	move.l	#10000,d0
+	move.l	#SPINS,d0
 	jsr	spin
 
 	suba.w	#tx1_w,a2
@@ -110,6 +112,7 @@ LLloop:
 ; a0: target
 ; d0: content; value splatted to long word
 ; d1: length
+; returns: a0: last_written_address + 1
 ; clobbers: d2
 memset:
 	move.l	d1,d2
@@ -126,7 +129,7 @@ Ltail0:
 Ltail1:
 	btst	#0,d1
 	beq	Ltail2
-	move.b	d0,(a0)
+	move.b	d0,(a0)+
 Ltail2:
 	rts
 
