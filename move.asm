@@ -78,7 +78,7 @@ move_up:
 
 ; clear text channel B
 ; a0: pattern ptr
-; clobbers d0, d1, d2, d3, d4, d5, d5, d7, a1
+; clobbers d0, d1, d2, d3, d4, d5, d6, d7, a1
 clear_texta1:
 	movem.l	(a0),d0-d3
 	movem.l 4*4(a0),d4-d7
@@ -95,7 +95,7 @@ Lloop:
 
 ; clear attr channel B
 ; a0: pattern ptr
-; clobbers d0, d1, d2, d3, d4, d5, d5, d7
+; clobbers d0, d1, d2, d3, d4, d5, d6, d7
 clear_texa1:
 	movem.l (a0),d0-d3
 	movea.l	#ea_texa1,a0
