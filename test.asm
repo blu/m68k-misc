@@ -77,53 +77,111 @@ reverse:
 	clr.w	d0 ; syscall_exit
 	trap	#15
 
-	pad_code 1
+;	pad_code 1
 pattern:
 	dc.l	'0123', '4567', '89ab', 'cdef'
 	dc.l	$42434243, $42434243, $42434243, $42434243
 
-; memset a buffer to a given value; only aligned writes
+; memset a buffer to a given value; 4B inner loop; only aligned writes
 ; a0: target
 ; d0: content; value splatted to long word
 ; d1: length
 ; returns: a0: last_written_address + 1
 ; clobbers: d2
-memset:
+memset_l4:
 	move.l	a0,d2
 
 	btst	#0,d2
-	beq	Lhead0
+	beq	L4head0
 	move.b	d0,(a0)+
 	addi.l	#1,d2
 	subi.l	#1,d1
-Lhead0:
+L4head0:
 	cmp	#2,d1
-	bcs	Ltail1
+	bcs	L4tail0
 
 	btst	#1,d2
-	beq	Lhead1
+	beq	L4head1
 	move.w	d0,(a0)+
-	addi.l	#2,d2
+;	addi.l	#2,d2 ; for higher alignmen versions
 	subi.l	#2,d1
-Lhead1:
+L4head1:
 	cmp	#4,d1
-	bcs	Ltail0
+	bcs	L4tail1
 
 	move.l	d1,d2
 	lsr.l	#2,d2
-Lloop4:
+L4loop:
 	move.l	#$40404040,(a0)+ ; imm just for the unit test; correct src: d0
 	subi.l	#1,d2
-	bne	Lloop4
-Ltail0:
+	bne	L4loop
+L4tail1:
 	btst	#1,d1
-	beq	Ltail1
+	beq	L4tail0
 	move.w	d0,(a0)+
-Ltail1:
+L4tail0:
 	btst	#0,d1
-	beq	Ltail2
+	beq	L4done
 	move.b	d0,(a0)+
-Ltail2:
+L4done:
+	rts
+
+; memset a buffer to a given value; 8B inner loop; only aligned writes
+; a0: target
+; d0: content; value splatted to long word
+; d1: length
+; returns: a0: last_written_address + 1
+; clobbers: d2
+memset_l8:
+	move.l	a0,d2
+
+	btst	#0,d2
+	beq	L8head0
+	move.b	d0,(a0)+
+	addi.l	#1,d2
+	subi.l	#1,d1
+L8head0:
+	cmp	#2,d1
+	bcs	L8tail0
+
+	btst	#1,d2
+	beq	L8head1
+	move.w	d0,(a0)+
+	addi.l	#2,d2
+	subi.l	#2,d1
+L8head1:
+	cmp	#4,d1
+	bcs	L8tail1
+
+	btst	#2,d2
+	beq	L8head2
+	move.l	d0,(a0)+
+;	addi.l	#4,d2 ; for higher alignmen versions
+	subi.l	#4,d1
+L8head2:
+	cmp	#8,d1
+	bcs	L8tail2
+
+	move.l	d1,d2
+	lsr.l	#3,d2
+L8loop:
+	move.l	#$40404040,(a0)+ ; imm just for the unit test; correct src: d0
+	move.l	#$3f3f3f3f,(a0)+ ; ditto
+	subi.l	#1,d2
+	bne	L8loop
+L8tail2:
+	btst	#2,d1
+	beq	L8tail1
+	move.l	d0,(a0)+
+L8tail1:
+	btst	#1,d1
+	beq	L8tail0
+	move.w	d0,(a0)+
+L8tail0:
+	btst	#0,d1
+	beq	L8done
+	move.b	d0,(a0)+
+L8done:
 	rts
 
 ; plot one memset test frame on channel B
@@ -138,7 +196,7 @@ line:
 	movea.l	a1,a0
 	move.l	#$41414141,d0
 	move.l	d4,d1
-	jsr	memset
+	jsr	memset_l8
 
 	cmpi.w	#LINES/(COLUMNS-LINES),d3
 	bne	param
