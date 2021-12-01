@@ -112,7 +112,7 @@ Lhead1:
 	move.l	d1,d2
 	and.l	#-4,d2
 Lloop4:
-	move.l	#$40404040,(a0)+ ; src: d0
+	move.l	#$40404040,(a0)+ ; imm just for the unit test; correct src: d0
 	subi.l	#4,d2
 	bne	Lloop4
 Ltail0:
