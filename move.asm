@@ -78,7 +78,7 @@ move_up:
 	clr.w	d0 ; syscall_exit
 	trap	#15
 
-; clear text channel B
+; clear text and attr channel B
 ; a0: pattern ptr
 ; clobbers d0, d1, d2, d3, d4, d5, d6, d7, a1
 clear_texta1:
