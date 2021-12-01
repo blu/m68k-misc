@@ -77,7 +77,7 @@ reverse:
 	clr.w	d0 ; syscall_exit
 	trap	#15
 
-;	pad_code 2
+	pad_code 1
 pattern:
 	dc.l	'0123', '4567', '89ab', 'cdef'
 	dc.l	$42434243, $42434243, $42434243, $42434243
@@ -110,10 +110,10 @@ Lhead1:
 	bcs	Ltail0
 
 	move.l	d1,d2
-	and.l	#-4,d2
+	lsr.l	#2,d2
 Lloop4:
 	move.l	#$40404040,(a0)+ ; imm just for the unit test; correct src: d0
-	subi.l	#4,d2
+	subi.l	#1,d2
 	bne	Lloop4
 Ltail0:
 	btst	#1,d1
