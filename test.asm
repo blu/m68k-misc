@@ -88,7 +88,7 @@ pattern:
 ; d1: length
 ; returns: a0: last_written_address + 1
 ; clobbers: d2
-memset_l4:
+memset4:
 	move.l	a0,d2
 
 	btst	#0,d2
@@ -132,7 +132,7 @@ L4done:
 ; d1: length
 ; returns: a0: last_written_address + 1
 ; clobbers: d2
-memset_l8:
+memset8:
 	move.l	a0,d2
 
 	btst	#0,d2
@@ -184,6 +184,81 @@ L8tail0:
 L8done:
 	rts
 
+; memset a buffer to a given value; 16B inner loop; only aligned writes
+; a0: target
+; d0: content; value splatted to long word
+; d1: length
+; returns: a0: last_written_address + 1
+; clobbers: d2
+memset16:
+	move.l	a0,d2
+
+	btst	#0,d2
+	beq	L16head0
+	move.b	d0,(a0)+
+	addi.l	#1,d2
+	subi.l	#1,d1
+L16head0:
+	cmp	#2,d1
+	bcs	L16tail0
+
+	btst	#1,d2
+	beq	L16head1
+	move.w	d0,(a0)+
+	addi.l	#2,d2
+	subi.l	#2,d1
+L16head1:
+	cmp	#4,d1
+	bcs	L16tail1
+
+	btst	#2,d2
+	beq	L16head2
+	move.l	d0,(a0)+
+	addi.l	#4,d2
+	subi.l	#4,d1
+L16head2:
+	cmp	#8,d1
+	bcs	L16tail2
+
+	btst	#3,d2
+	beq	L16head3
+	move.l	d0,(a0)+
+	move.l	d0,(a0)+
+;	addi.l	#8,d2 ; for higher alignmen versions
+	subi.l	#8,d1
+L16head3:
+	cmp	#16,d1
+	bcs	L16tail3
+
+	move.l	d1,d2
+	lsr.l	#4,d2
+L16loop:
+	move.l	#$40404040,(a0)+ ; imm just for the unit test; correct src: d0
+	move.l	#$3f3f3f3f,(a0)+ ; ditto
+	move.l	#$3e3e3e3e,(a0)+ ; ditto
+	move.l	#$3d3d3d3d,(a0)+ ; ditto
+	subi.l	#1,d2
+	bne	L16loop
+L16tail3:
+	btst	#3,d1
+	beq	L16tail2
+	move.l	d0,(a0)+
+	move.l	d0,(a0)+
+L16tail2:
+	btst	#2,d1
+	beq	L16tail1
+	move.l	d0,(a0)+
+L16tail1:
+	btst	#1,d1
+	beq	L16tail0
+	move.w	d0,(a0)+
+L16tail0:
+	btst	#0,d1
+	beq	L16done
+	move.b	d0,(a0)+
+L16done:
+	rts
+
 ; plot one memset test frame on channel B
 ; a3: where to start the plot
 ; clobbers: d0-d4,a0-a2
@@ -196,7 +271,7 @@ line:
 	movea.l	a1,a0
 	move.l	#$41414141,d0
 	move.l	d4,d1
-	jsr	memset_l8
+	jsr	memset8
 
 	cmpi.w	#LINES/(COLUMNS-LINES),d3
 	bne	param
