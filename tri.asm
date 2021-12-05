@@ -12,11 +12,6 @@ tx0_h	equ 56
 tx1_w	equ 80
 tx1_h	equ 60
 
-COLUMNS	equ 64
-LINES	equ 48
-
-SPINS	equ $10000
-
 ; don't use align lest intelHex loading breaks; use pad_code instead
 
 	macro	pad_code ; <num_words>
