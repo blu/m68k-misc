@@ -19,10 +19,9 @@ SPINS	equ $10000
 
 ; don't use align lest intelHex loading breaks; use pad_code instead
 
-; contrary to what vasm docs say, macro definition order is "<name> macro"
-pad_code macro ; <num_words>
+	macro pad_code ; <num_words>
 	dcb.w	\1,$4afc ; illegal instruction; traps
-endm
+	endm
 
 	; we want absolute addresses -- with moto/vasm that means
 	; just use org; don't use sections as they cause resetting
@@ -288,7 +287,7 @@ param:
 
 ; clear text channel B
 ; a0: pattern ptr
-; clobbers d0, d1, d2, d3, d4, d5, d6, d7
+; clobbers d0-d7
 clear_text1:
 	movem.l	(a0),d0-d3
 	movea.l	#ea_text1,a0
@@ -301,7 +300,7 @@ Lloop:
 
 ; clear attr channel B
 ; a0: pattern ptr
-; clobbers d0, d1, d2, d3, d4, d5, d6, d7
+; clobbers d0-d7
 clear_texa1:
 	movem.l (a0),d0-d3
 	movea.l	#ea_texa1,a0

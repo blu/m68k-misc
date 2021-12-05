@@ -16,10 +16,9 @@ SPINS	equ $4000
 
 ; don't use align lest intelHex loading breaks; use pad_code instead
 
-; contrary to what vasm docs say, macro definition order is "<name> macro"
-pad_code macro ; <num_words>
+	macro pad_code ; <num_words>
 	dcb.w	\1,$4afc ; illegal instruction; traps
-endm
+	endm
 
 	; we want absolute addresses -- with moto/vasm that means
 	; just use org; don't use sections as they cause resetting
