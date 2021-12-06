@@ -63,12 +63,12 @@ tri:
 	jsr	get_coord
 
 	; if {s|t} < 0 || (s+t) > area then pixel is outside
-	cmpi.w	#0,d0
+	cmpi.l	#0,d0
 	blt	skip
-	cmpi.w	#0,d1
+	cmpi.l	#0,d1
 	blt	skip
-	add.w	d1,d0
-	cmp.w	pb_area(a0),d0
+	add.l	d1,d0
+	cmp.l	pb_area(a0),d0
 	bgt	skip
 	; tri pixel -- plot and exit tri loop
 	move.b	d7,(a2)
@@ -142,7 +142,7 @@ tri_size = __SO
 pb_p0	so.w 2 ; r2
 pb_e01	so.w 2 ; r2
 pb_e02	so.w 2 ; r2
-pb_area	so.w 1
+pb_area	so.l 1
 pb_size = __SO
 
 ; compute parallelogram basis from a tri:
@@ -180,18 +180,18 @@ init_pb:
 	; area = e01.x * e02.y - e02.x * e01.y
 	muls.w	d5,d2
 	muls.w	d4,d3
-	sub.w	d3,d2
+	sub.l	d3,d2
 
-	move.w	d2,pb_area(a1)
+	move.l	d2,pb_area(a1)
 	rts
 
 ; get barycentric coords of the given point in the given parallelogram basis;
 ; coords are before normalization!
 ; a0: basis ptr
-; d0: pt.x
-; d1: pt.y
-; returns: d0: s coord before normalization
-;          d1: t coord before normalization
+; d0.w: pt.x
+; d1.w: pt.y
+; returns: d0.l: s coord before normalization
+;          d1.l: t coord before normalization
 ; clobbers: d2-d3
 get_coord:
 	; dx = p.x - pb.p0.x
@@ -206,11 +206,11 @@ get_coord:
 	muls.w	pb_e01+r2_y(a0),d2 ; dx * e01.y
 	muls.w	pb_e02+r2_x(a0),d3 ; dy * e02.x
 	muls.w	pb_e02+r2_y(a0),d0 ; dx * e02.y
-	sub.w	d3,d0
-	sub.w	d2,d1
+	sub.l	d3,d0
+	sub.l	d2,d1
 	rts
 
-;	pad_code 1
+	pad_code 2
 pattern:
 	dc.l	'0123', '4567', '89ab', 'cdef'
 	dc.l	$44444444, $44444444, $44444444, $44444444
