@@ -14,8 +14,7 @@ tx1_h	equ 60
 
 SPINS	equ $4000
 
-; don't use align lest intelHex loading breaks; use pad_code instead
-
+	; don't use align amidst code lest intelHex loading breaks; use pad_code instead
 	macro pad_code ; <num_words>
 	dcb.w	\1,$4afc ; illegal instruction; traps
 	endm
@@ -74,7 +73,7 @@ move_up:
 	bra	again
 
 	; some day
-	clr.w	d0 ; syscall_exit
+	moveq	#0,d0 ; syscall_exit
 	trap	#15
 
 ; clear text and attr channel B

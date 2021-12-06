@@ -12,8 +12,7 @@ tx0_h	equ 56
 tx1_w	equ 80
 tx1_h	equ 60
 
-; don't use align lest intelHex loading breaks; use pad_code instead
-
+	; don't use align amidst code lest intelHex loading breaks; use pad_code instead
 	macro	pad_code ; <num_words>
 	dcb.w	\1,$4afc ; illegal instruction; traps
 	endm
@@ -47,7 +46,7 @@ cpb:
 	adda.l	#tri_size,a0
 	adda.l	#pb_size,a1
 	cmpa.l	a2,a0
-	bne	cpb
+	bcs	cpb
 
 	movea.l	#ea_texa1,a2
 	movea.l	#ea_texa1+tx1_h*tx1_w,a3
@@ -209,7 +208,7 @@ get_coord:
 	sub.l	d2,d1
 	rts
 
-	pad_code 2
+	align 2
 pattern:
 	dc.l	'0123', '4567', '89ab', 'cdef'
 	dc.l	$44444444, $44444444, $44444444, $44444444
@@ -225,5 +224,7 @@ tri_0:
 	dc.w	63, 59
 	dc.w	 0, 33
 	dc.w	49, 31
+
+	align 2
 tri_end:
 	ds.w	(tri_end-tri_0)/tri_size*pb_size/2

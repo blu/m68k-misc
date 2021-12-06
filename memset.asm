@@ -17,8 +17,7 @@ LINES	equ 48
 
 SPINS	equ $10000
 
-; don't use align lest intelHex loading breaks; use pad_code instead
-
+	; don't use align amidst code lest intelHex loading breaks; use pad_code instead
 	macro pad_code ; <num_words>
 	dcb.w	\1,$4afc ; illegal instruction; traps
 	endm
@@ -73,7 +72,7 @@ reverse:
 	bra	again
 
 	; some day
-	clr.w	d0 ; syscall_exit
+	moveq	#0,d0 ; syscall_exit
 	trap	#15
 
 ;	pad_code 1
@@ -274,7 +273,7 @@ line:
 
 	cmpi.w	#LINES/(COLUMNS-LINES),d3
 	bne	param
-	clr.w	d3
+	moveq	#0,d3
 	adda.w	#1,a1
 param:
 	addi.w	#1,d3
