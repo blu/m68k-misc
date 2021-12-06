@@ -89,7 +89,6 @@ param:
 	cmpa.l	a3,a2
 	bne	pixel
 
-	; some day
 	moveq	#0,d0 ; syscall_exit
 	trap	#15
 
