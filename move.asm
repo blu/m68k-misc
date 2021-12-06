@@ -14,7 +14,7 @@ tx1_h	equ 60
 
 SPINS	equ $4000
 
-	; don't use align amidst code lest intelHex loading breaks; use pad_code instead
+	; don't use align lest intelHex output breaks; use pad_code instead
 	macro pad_code ; <num_words>
 	dcb.w	\1,$4afc ; illegal instruction; traps
 	endm

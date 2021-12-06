@@ -12,7 +12,7 @@ tx0_h	equ 56
 tx1_w	equ 80
 tx1_h	equ 60
 
-	; don't use align amidst code lest intelHex loading breaks; use pad_code instead
+	; don't use align lest intelHex output breaks; use pad_code instead
 	macro	pad_code ; <num_words>
 	dcb.w	\1,$4afc ; illegal instruction; traps
 	endm
@@ -39,8 +39,8 @@ tx1_h	equ 60
 
 	; compute bases for a few on-screeen tris
 	lea	tri_0,a0
-	lea	tri_end,a1
-	movea.l	a1,a2
+	lea	pb_0,a1
+	lea	tri_end,a2
 cpb:
 	jsr	init_pb
 	adda.l	#tri_size,a0
@@ -53,8 +53,8 @@ cpb:
 	moveq	#0,d5 ; curr_x
 	moveq	#0,d6 ; curr_y
 pixel:
-	lea	tri_end,a0
-	lea	tri_end+(tri_end-tri_0)/tri_size*pb_size,a1
+	lea	pb_0,a0
+	lea	pb_0+(tri_end-tri_0)/tri_size*pb_size,a1
 	moveq	#$47,d7
 tri:
 	move.w	d5,d0
@@ -224,7 +224,7 @@ tri_0:
 	dc.w	63, 59
 	dc.w	 0, 33
 	dc.w	49, 31
-
-	align 2
 tri_end:
+	align 4
+pb_0:
 	ds.w	(tri_end-tri_0)/tri_size*pb_size/2
