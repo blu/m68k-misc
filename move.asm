@@ -12,7 +12,13 @@ tx0_h	equ 56
 tx1_w	equ 80
 tx1_h	equ 60
 
-SPINS	equ $4000
+paddlen	equ 9
+padd_y	equ tx1_h-3
+
+ball_w	equ 1
+ball_h	equ 1
+
+spins	equ $8000
 
 	; don't use align lest intelHex output breaks; use pad_code instead
 	macro pad_code ; <num_words>
@@ -31,71 +37,48 @@ SPINS	equ $4000
 	move.l	a1,usp
 	andi.w	#$dfff,sr
 
-again:
-	movea.l	#ea_texa1+tx1_h*tx1_w,a3
-	movea.l	#ea_texa1+3,a2
-move_dn:
-	; vsync?
-	lea.l	pattern+4*4,a0
+	moveq	#tx1_w/2,d4  ; curr_x
+	moveq	#padd_y-1,d5 ; curr_y
+	moveq	#-1,d6       ; step_x
+	moveq   #-1,d7       ; step_y
+frame:
+	lea.l	pattern,a0
 	jsr	clear_texa1
 
-	movea.l	a2,a0
-	move.l	#$41414141,d0
-	moveq.l	#17,d1
-	jsr	memset
+	move.w	d4,d0
+	move.w	d5,d1
+	jsr	ball
 
-	move.l	#SPINS,d0
+	move.w	d4,d0
+	jsr	paddle
+
+	; update positions
+	add.w	d6,d4
+	beq	neg_step_x
+	cmpi.w	#tx1_w-ball_w,d4
+	bcs	done_x
+neg_step_x:
+	neg.w	d6
+done_x:
+	add.w	d7,d5
+	beq	neg_step_y
+	cmpi.w	#padd_y-ball_h,d5
+	bcs	done_y
+neg_step_y:
+	neg.w	d7
+done_y:
+	move.l	#spins,d0
 	jsr	spin
 
-	adda.w	#tx1_w,a2
-	cmpa.l	a3,a2
-	blt	move_dn
-
-	movea.l	#ea_texa1,a3
-	suba.w	#tx1_w,a2
-move_up:
-	; vsync?
-	lea.l	pattern+4*4,a0
-	jsr	clear_texa1
-
-	movea.l	a2,a0
-	move.l	#$41414141,d0
-	moveq.l	#17,d1
-	jsr	memset
-
-	move.l	#SPINS,d0
-	jsr	spin
-
-	suba.w	#tx1_w,a2
-	cmpa.l	a3,a2
-	bgt	move_up
-
-	bra	again
+	bra	frame
 
 	; some day
 	moveq	#0,d0 ; syscall_exit
 	trap	#15
 
-; clear text and attr channel B
+; clear text attr channel B
 ; a0: pattern ptr
-; clobbers d0, d1, d2, d3, d4, d5, d6, d7, a1
-clear_texta1:
-	movem.l	(a0),d0-d3
-	movem.l 4*4(a0),d4-d7
-	movea.l	#ea_text1,a0
-	movea.l	#ea_texa1,a1
-Lloop:
-	movem.l	d0-d3,(a0)
-	movem.l	d4-d7,(a1)
-	adda.l	#$4*4,a0 ; emits lea (an,16),an
-	adda.l	#$4*4,a1
-	cmpa.l	#ea_text1+tx1_w*tx1_h,a0
-	blt	Lloop
-	rts
-
-; clear attr channel B
-; a0: pattern ptr
-; clobbers d0, d1, d2, d3, d4, d5, d6, d7
+; clobbers d0-d3
 clear_texa1:
 	movem.l (a0),d0-d3
 	movea.l	#ea_texa1,a0
@@ -138,7 +121,38 @@ spin:
 	bne	spin
 	rts
 
-	pad_code 1
+; draw ball
+; d0.w: x-coord -- left of ball
+; d1.w: y-coord -- top of ball
+; clobbers: a0
+ball:
+	movea.w	d0,a0
+	adda.l	#ea_texa1,a0
+	mulu.w	#tx1_w,d1
+	adda.l	d1,a0
+	move.b	#$f,(a0)
+	rts
+
+; draw paddle
+; d0.w: x-coord -- middle of paddle
+; clobbers: d1-d2, a0
+paddle:
+	subi.w	#paddlen/2,d0
+	bge	min_done
+	moveq	#0,d0
+	bra	max_done
+min_done:
+	cmpi.w	#tx1_w-paddlen,d0
+	ble	max_done
+	moveq	#tx1_w-paddlen,d0
+max_done:
+	movea.w	d0,a0
+	adda.l	#ea_texa1+tx1_w*padd_y,a0
+	move.l	#$41414141,d0
+	moveq.l	#paddlen,d1
+	jsr	memset
+	rts
+
+	align 2
 pattern:
-	dcb.l	4, '    '
 	dcb.l	4, $42434243
