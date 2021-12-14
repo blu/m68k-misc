@@ -17,11 +17,6 @@ LINES	equ 48
 
 SPINS	equ $10000
 
-	; don't use align lest intelHex output breaks; use pad_code instead
-	macro pad_code ; <num_words>
-	dcb.w	\1,$4afc ; illegal instruction; traps
-	endm
-
 	; we want absolute addresses -- with moto/vasm that means
 	; just use org; don't use sections as they cause resetting
 	; of the current offset for generation of relocatable code
@@ -29,7 +24,6 @@ SPINS	equ $10000
 
 	; we get injected right into supervisor mode, interrupt-style
 	; demote ourselves to user mode
-
 	movea.l	#ea_stack,a1
 	move.l	a1,usp
 	andi.w	#$dfff,sr
@@ -75,7 +69,6 @@ reverse:
 	moveq	#0,d0 ; syscall_exit
 	trap	#15
 
-;	pad_code 1
 pattern:
 	dc.l	'0123', '4567', '89ab', 'cdef'
 	dc.l	$42434243, $42434243, $42434243, $42434243

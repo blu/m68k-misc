@@ -6,8 +6,8 @@
 # Note that we have to re-specify the load address to the
 # utility as our original ORG directive is lost in translation.
 
-if [ $# != 1 ] ; then
-	echo usage: $0 file-sans-extension
+if [ $# == 0 ] ; then
+	echo usage: $0 file-sans-extension [vasm-args]
 	exit 1
 fi
 
@@ -16,5 +16,13 @@ if ! which srec_cat ; then
 	exit 1
 fi
 
-./vasmm68k_mot -align -Fbin -o tmp.bin $1.asm
-srec_cat tmp.bin -binary -offset 0x20000 -o $1.hex -intel
+if [ ! -e $1.asm ] ; then
+	echo Cannot find file $1.asm
+	exit 1
+fi
+
+filename_base=$1
+shift
+
+./vasmm68k_mot $@ -align -Fbin -o tmp.bin $filename_base.asm
+srec_cat tmp.bin -binary -offset 0x20000 -o $filename_base.hex -intel

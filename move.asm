@@ -20,11 +20,6 @@ ball_h	equ 1
 
 spins	equ $8000
 
-	; don't use align lest intelHex output breaks; use pad_code instead
-	macro pad_code ; <num_words>
-	dcb.w	\1,$4afc ; illegal instruction; traps
-	endm
-
 	; we want absolute addresses -- with moto/vasm that means
 	; just use org; don't use sections as they cause resetting
 	; of the current offset for generation of relocatable code
@@ -32,7 +27,6 @@ spins	equ $8000
 
 	; we get injected right into supervisor mode, interrupt-style
 	; demote ourselves to user mode
-
 	movea.l	#ea_stack,a1
 	move.l	a1,usp
 	andi.w	#$dfff,sr

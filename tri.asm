@@ -12,11 +12,6 @@ tx0_h	equ 56
 tx1_w	equ 80
 tx1_h	equ 60
 
-	; don't use align lest intelHex output breaks; use pad_code instead
-	macro	pad_code ; <num_words>
-	dcb.w	\1,$4afc ; illegal instruction; traps
-	endm
-
 	; we want absolute addresses -- with moto/vasm that means
 	; just use org; don't use sections as they cause resetting
 	; of the current offset for generation of relocatable code
@@ -24,12 +19,11 @@ tx1_h	equ 60
 
 	; we get injected right into supervisor mode, interrupt-style
 	; demote ourselves to user mode
-
 	movea.l	#ea_stack,a1
 	move.l	a1,usp
 	andi.w	#$dfff,sr
 
-	; plot graph paper on channel B -- glyphs
+	; plot graph paper on channel B -- symbols
 ;	lea.l	pattern,a0
 ;	jsr	clear_text1
 
