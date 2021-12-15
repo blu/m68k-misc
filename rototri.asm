@@ -92,6 +92,7 @@ base:
 	movea.l	#ea_texa1+tx1_h*tx1_w,a3
 	moveq	#0,d4 ; scr_x
 	moveq	#0,d5 ; scr_y
+	move.w	frame_i,d6
 pixel:
 	lea	pb_0,a0
 	lea	pb_0+(tri_end-tri_scr_0)/tri_size*pb_size,a1
@@ -109,7 +110,7 @@ tri:
 	cmp.l	pb_area(a0),d0
 	bgt	skip
 	; tri pixel -- plot and exit tri loop
-	move.b	frame_i+1,(a2)
+	move.b	d6,(a2)
 	bra	tri_done
 skip:
 	adda.l	#pb_size,a0
