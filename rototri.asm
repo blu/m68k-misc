@@ -12,6 +12,8 @@ tx0_h	equ 56
 tx1_w	equ 80
 tx1_h	equ 60
 
+fract	equ 15
+
 	; we want absolute addresses -- with moto/vasm that means
 	; just use org; don't use sections as they cause resetting
 	; of the current offset for generation of relocatable code
@@ -23,36 +25,79 @@ tx1_h	equ 60
 	move.l	a1,usp
 	andi.w	#$dfff,sr
 
-	; plot graph paper on channel B -- symbols
-;	lea.l	pattern,a0
-;	jsr	clear_text1
+frame:
+	; compute scr coords for obj-space tris
+	lea	tri_obj_0,a0
+	lea	tri_scr_0,a1
+	movea.l	a1,a2
+	move.w	angle,d5
+	moveq	#fract,d6 ; 68000 shift cannot do imm > 8
+	moveq	#0,d7     ; 68000 addx cannot do imm
+vert:
+	move.w	(a0)+,d3 ; vert.x
+	move.w	(a0)+,d4 ; vert.y
 
-	; plot graph paper on channel B -- colors
-;	lea.l	pattern+4*4,a0
-;	jsr	clear_texa1
+	; transform vertex x-coord: cos * x - sin * y
+	move.w	d3,d0
+	move.w	d5,d1
+	jsr	mul_cos
+	move.l	d0,d2
 
-	; compute bases for a few on-screeen tris
-	lea	tri_0,a0
+	move.w	d4,d0
+	move.w	d5,d1
+	jsr	mul_sin
+
+	sub.l	d0,d2
+	; fx16.15 -> int16
+	asr.l	d6,d2
+	addx.w	d7,d2
+
+	addi.w	#tx1_w/2,d2
+	move.w	d2,(a1)+
+
+	; transform vertex y-coord: sin * x + cos * y
+	move.w	d3,d0
+	move.w	d5,d1
+	jsr	mul_sin
+	move.l	d0,d2
+
+	move.w	d4,d0
+	move.w	d5,d1
+	jsr	mul_cos
+
+	add.l	d0,d2
+	; fx16.15 -> int16
+	asr.l	d6,d2
+	addx.w	d7,d2
+
+	addi.w	#tx1_h/2,d2
+	move.w	d2,(a1)+
+
+	cmpa.l	a2,a0
+	bcs	vert
+
+	; compute bases for scr-space tris
+	lea	tri_scr_0,a0
 	lea	pb_0,a1
 	lea	tri_end,a2
-cpb:
+base:
 	jsr	init_pb
 	adda.l	#tri_size,a0
 	adda.l	#pb_size,a1
 	cmpa.l	a2,a0
-	bcs	cpb
+	bcs	base
 
+	; scan-convert the scr-space tris
 	movea.l	#ea_texa1,a2
 	movea.l	#ea_texa1+tx1_h*tx1_w,a3
-	moveq	#0,d5 ; curr_x
-	moveq	#0,d6 ; curr_y
+	moveq	#0,d4 ; scr_x
+	moveq	#0,d5 ; scr_y
 pixel:
 	lea	pb_0,a0
-	lea	pb_0+(tri_end-tri_0)/tri_size*pb_size,a1
-	moveq	#$47,d7
+	lea	pb_0+(tri_end-tri_scr_0)/tri_size*pb_size,a1
 tri:
-	move.w	d5,d0
-	move.w	d6,d1
+	move.w	d4,d0
+	move.w	d5,d1
 	jsr	get_coord
 
 	; if {s|t} < 0 || (s+t) > area then pixel is outside
@@ -64,57 +109,60 @@ tri:
 	cmp.l	pb_area(a0),d0
 	bgt	skip
 	; tri pixel -- plot and exit tri loop
-	move.b	d7,(a2)
+	move.b	frame_i+1,(a2)
 	bra	tri_done
 skip:
-	addi.b	#1,d7
 	adda.l	#pb_size,a0
 	cmpa.l	a1,a0
 	bne	tri
 tri_done:
-	addi.w	#1,d5
-	cmpi.w	#tx1_w,d5
+	addi.w	#1,d4
+	cmpi.w	#tx1_w,d4
 	blt	param
-	moveq	#0,d5
-	addi.w	#1,d6
+	moveq	#0,d4
+	addi.w	#1,d5
 param:
 	adda.l	#1,a2
 	cmpa.l	a3,a2
 	bne	pixel
 
+	addi.w	#4,angle
+	move.w	frame_i,d0
+	addi.w	#1,d0
+	move.w	d0,frame_i
+	movea.l	#ea_text1+tx1_w-4,a0
+	jsr	print_frame
+	bra	frame
+
+	; some day
 	moveq	#0,d0 ; syscall_exit
 	trap	#15
 
-; clear text channel B
-; a0: pattern ptr
-; clobbers d0-d3
-clear_text1:
-	movem.l	(a0),d0-d3
-	movea.l	#ea_text1,a0
-Lloop:
-	movem.l	d0-d3,(a0)
-	adda.l	#$4*4,a0 ; emits lea (an,16),an
-	cmpa.l	#ea_text1+tx1_w*tx1_h,a0
-	blt	Lloop
-	rts
-
-; clear attr channel B
-; a0: pattern ptr
-; clobbers d0-d3
-clear_texa1:
-	movem.l (a0),d0-d3
-	movea.l	#ea_texa1,a0
-LLloop:
-	movem.l	d0-d3,(a0)
-	adda.l	#$4*4,a0 ; emits lea (an,16),an
-	cmpa.l	#ea_texa1+tx1_w*tx1_h,a0
-	blt	LLloop
+; print word at the specified address
+; d0.w: word to print
+; a0: address to print at
+; clobbers: d1, a1
+print_frame:
+	lea	4(a0),a1
+nibble:
+	rol.w	#4,d0
+	move.b	d0,d1
+	andi.b	#$f,d1
+	addi.b	#'0',d1
+	cmpi.b	#'0'+10,d1
+	bcs	digit_ready
+	addi.b	#'a'-'9'-1,d1
+digit_ready:
+	move.b	d1,(a0)+
+	cmpa.l	a1,a0
+	bcs	nibble
 	rts
 
 ; struct r2
 	clrso
 r2_x	so.w 1
 r2_y	so.w 1
+r2_size = __SO
 
 ; struct tri
 	clrso
@@ -202,23 +250,63 @@ get_coord:
 	sub.l	d2,d1
 	rts
 
-	align 2
-pattern:
-	dc.l	'0123', '4567', '89ab', 'cdef'
-	dc.l	$44444444, $44444444, $44444444, $44444444
-tri_0:
-	dc.w	79,  0
-	dc.w	49, 31
-	dc.w	 0, 33
+; multiply by sine
+; d0.w: multiplicand
+; d1.w: angle ticks -- [0, 2pi) -> [0, 256)
+; returns: d0.l: sine product as fx16.15 (d0[31] replicates sign)
+	mc68020
+mul_sin:
+	and.w	#$ff,d1
+	cmpi.b	#$80,d1
+	bcs	sign_done
+	neg.w	d0
+	subi.b	#$80,d1
+sign_done:
+	cmpi.b	#$40,d1
+	bne	not_maximum
+	swap	d0
+	move.w	#0,d0
+	asr.l	#1,d0
+	rts
+not_maximum:
+	bcs	symmetry_done
+	subi.b	#$80,d1
+	neg.b	d1
+symmetry_done:
+	muls.w	sinLUT(d1.w*2),d0
+	rts
 
-	dc.w	79,  0
-	dc.w	63, 59
-	dc.w	49, 31
+; multiply by cosine
+; d0.w: multiplicand
+; d1.w: angle ticks -- [0, 2pi) -> [0, 256)
+; returns; d0.l: cosine product as fx16.15 (d0[31] replicates sign)
+	mc68000
+mul_cos:
+	addi.w	#$40,d1
+	bra	mul_sin
 
-	dc.w	63, 59
-	dc.w	 0, 33
-	dc.w	49, 31
+angle:
+	dc.w	0
+frame_i:
+	dc.w	0
+
+	align 4
+sinLUT:
+	dc.w $0000, $0324, $0648, $096B, $0C8C, $0FAB, $12C8, $15E2
+	dc.w $18F9, $1C0C, $1F1A, $2224, $2528, $2827, $2B1F, $2E11
+	dc.w $30FC, $33DF, $36BA, $398D, $3C57, $3F17, $41CE, $447B
+	dc.w $471D, $49B4, $4C40, $4EC0, $5134, $539B, $55F6, $5843
+	dc.w $5A82, $5CB4, $5ED7, $60EC, $62F2, $64E9, $66D0, $68A7
+	dc.w $6A6E, $6C24, $6DCA, $6F5F, $70E3, $7255, $73B6, $7505
+	dc.w $7642, $776C, $7885, $798A, $7A7D, $7B5D, $7C2A, $7CE4
+	dc.w $7D8A, $7E1E, $7E9D, $7F0A, $7F62, $7FA7, $7FD9, $7FF6
+tri_obj_0:
+	dc.w	  0, -29
+	dc.w	 25,  14
+	dc.w	-25,  14
+tri_scr_0:
+	ds.w	(tri_scr_0-tri_obj_0)/2
 tri_end:
 	align 4
 pb_0:
-	ds.w	(tri_end-tri_0)/tri_size*pb_size/2
+	ds.w	(tri_end-tri_scr_0)/tri_size*pb_size/2

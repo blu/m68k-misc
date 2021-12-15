@@ -41,7 +41,7 @@ fract	equ 15
 	moveq	#fract,d6 ; 68000 shift cannot do imm > 8
 	moveq	#0,d7     ; 68000 addx cannot do imm
 point:
-	move.l	d2,d0
+	move.w	d2,d0
 	move.w	d3,d1
 	jsr	mul_sin
 	; fx16.15 -> int16
@@ -52,7 +52,7 @@ point:
 	mulu.w	#tx1_w,d0
 	movea.w	d0,a0
 
-	move.l	d2,d0
+	move.w	d2,d0
 	move.w	d3,d1
 	jsr	mul_cos
 	; fx16.15 -> int16
@@ -72,7 +72,7 @@ point:
 	trap	#15
 
 ; multiply by sine
-; d0.w: multiplicand; msw: 0
+; d0.w: multiplicand
 ; d1.w: angle ticks -- [0, 2pi) -> [0, 256)
 ; returns: d0.l: sine product as fx16.15 (d0[31] replicates sign)
 	mc68020
@@ -86,6 +86,7 @@ sign_done:
 	cmpi.b	#$40,d1
 	bne	not_maximum
 	swap	d0
+	move.w	#0,d0
 	asr.l	#1,d0
 	rts
 not_maximum:
@@ -99,7 +100,7 @@ symmetry_done:
 	rts
 
 ; multiply by cosine
-; d0.w: multiplicand; msw: 0
+; d0.w: multiplicand
 ; d1.w: angle ticks -- [0, 2pi) -> [0, 256)
 ; returns; d0.l: cosine product as fx16.15 (d0[31] replicates sign)
 	mc68000

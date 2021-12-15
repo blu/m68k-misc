@@ -279,7 +279,7 @@ param:
 
 ; clear text channel B
 ; a0: pattern ptr
-; clobbers d0-d7
+; clobbers d0-d3
 clear_text1:
 	movem.l	(a0),d0-d3
 	movea.l	#ea_text1,a0
@@ -292,7 +292,7 @@ Lloop:
 
 ; clear attr channel B
 ; a0: pattern ptr
-; clobbers d0-d7
+; clobbers d0-d3
 clear_texa1:
 	movem.l (a0),d0-d3
 	movea.l	#ea_texa1,a0
