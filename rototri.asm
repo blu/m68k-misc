@@ -132,18 +132,18 @@ param:
 	addi.w	#1,d0
 	move.w	d0,frame_i
 	movea.l	#ea_text1+tx1_w-4,a0
-	jsr	print_frame
+	jsr	print_u16
 	bra	frame
 
 	; some day
 	moveq	#0,d0 ; syscall_exit
 	trap	#15
 
-; print word at the specified address
+; produce ascii from word
 ; d0.w: word to print
-; a0: address to print at
+; a0: output address
 ; clobbers: d1, a1
-print_frame:
+print_u16:
 	lea	4(a0),a1
 nibble:
 	rol.w	#4,d0
