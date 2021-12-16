@@ -34,8 +34,8 @@ frame:
 	moveq	#fract,d6 ; 68000 shift cannot do imm > 8
 	moveq	#0,d7     ; 68000 addx cannot do imm
 vert:
-	move.w	r2_x(a0),d3
-	move.w	r2_y(a0),d4
+	move.w	(a0)+,d3 ; v_in.x
+	move.w	(a0)+,d4 ; v_in.y
 
 	; transform vertex x-coord: cos * x - sin * y
 	move.w	d3,d0
@@ -53,7 +53,7 @@ vert:
 	addx.w	d7,d2
 
 	addi.w	#tx1_w/2,d2
-	move.w	d2,r2_x(a1)
+	move.w	d2,(a1)+ ; v_out.x
 
 	; transform vertex y-coord: sin * x + cos * y
 	move.w	d3,d0
@@ -71,10 +71,8 @@ vert:
 	addx.w	d7,d2
 
 	addi.w	#tx1_h/2,d2
-	move.w	d2,r2_y(a1)
+	move.w	d2,(a1)+ ; v_out.y
 
-	adda.w	#r2_size,a0
-	adda.w	#r2_size,a1
 	cmpa.l	a2,a0
 	bcs	vert
 
@@ -84,8 +82,6 @@ vert:
 	lea	tri_end,a2
 base:
 	jsr	init_pb
-	adda.l	#tri_size,a0
-	adda.l	#pb_size,a1
 	cmpa.l	a2,a0
 	bcs	base
 
@@ -194,16 +190,18 @@ pb_size = __SO
 ;   area = e01.x * e02.y - e02.x * e01.y
 ; a0: tri ptr
 ; a1: basis ptr
+; returns: a0: tri_ptr + 1
+;          a1: basis_ptr + 1
 ; clobbers: d0-d5
 init_pb:
-	move.w	tri_p0+r2_x(a0),d0
-	move.w	tri_p0+r2_y(a0),d1
+	move.w	(a0)+,d0 ; tri_p0.x
+	move.w	(a0)+,d1 ; tri_p0.y
 
-	move.w	tri_p1+r2_x(a0),d2
-	move.w	tri_p1+r2_y(a0),d3
+	move.w	(a0)+,d2 ; tri_p1.x
+	move.w	(a0)+,d3 ; tri_p1.y
 
-	move.w	tri_p2+r2_x(a0),d4
-	move.w	tri_p2+r2_y(a0),d5
+	move.w	(a0)+,d4 ; tri_p2.x
+	move.w	(a0)+,d5 ; tri_p2.y
 
 	sub.w	d0,d2 ; e01.x = p1.x - p0.x
 	sub.w	d1,d3 ; e01.y = p1.y - p0.y
@@ -211,21 +209,21 @@ init_pb:
 	sub.w	d0,d4 ; e02.x = p2.x - p0.x
 	sub.w	d1,d5 ; e02.y = p2.y - p0.y
 
-	move.w	d0,pb_p0+r2_x(a1)
-	move.w	d1,pb_p0+r2_y(a1)
+	move.w	d0,(a1)+ ; pb_p0.x
+	move.w	d1,(a1)+ ; pb_p0.y
 
-	move.w	d2,pb_e01+r2_x(a1)
-	move.w	d3,pb_e01+r2_y(a1)
+	move.w	d2,(a1)+ ; pb_e01.x
+	move.w	d3,(a1)+ ; pb_e01.y
 
-	move.w	d4,pb_e02+r2_x(a1)
-	move.w	d5,pb_e02+r2_y(a1)
+	move.w	d4,(a1)+ ; pb_e02.x
+	move.w	d5,(a1)+ ; pb_e02.y
 
 	; area = e01.x * e02.y - e02.x * e01.y
 	muls.w	d5,d2
 	muls.w	d4,d3
 	sub.l	d3,d2
 
-	move.l	d2,pb_area(a1)
+	move.l	d2,(a1)+ ; pb_area
 	rts
 
 ; get barycentric coords of the given point in the given parallelogram basis;
