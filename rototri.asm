@@ -34,8 +34,8 @@ frame:
 	moveq	#fract,d6 ; 68000 shift cannot do imm > 8
 	moveq	#0,d7     ; 68000 addx cannot do imm
 vert:
-	move.w	(a0)+,d3 ; vert.x
-	move.w	(a0)+,d4 ; vert.y
+	move.w	r2_x(a0),d3
+	move.w	r2_y(a0),d4
 
 	; transform vertex x-coord: cos * x - sin * y
 	move.w	d3,d0
@@ -53,7 +53,7 @@ vert:
 	addx.w	d7,d2
 
 	addi.w	#tx1_w/2,d2
-	move.w	d2,(a1)+
+	move.w	d2,r2_x(a1)
 
 	; transform vertex y-coord: sin * x + cos * y
 	move.w	d3,d0
@@ -71,8 +71,10 @@ vert:
 	addx.w	d7,d2
 
 	addi.w	#tx1_h/2,d2
-	move.w	d2,(a1)+
+	move.w	d2,r2_y(a1)
 
+	adda.w	#r2_size,a0
+	adda.w	#r2_size,a1
 	cmpa.l	a2,a0
 	bcs	vert
 
