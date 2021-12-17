@@ -30,52 +30,98 @@ frame:
 	lea	tri_obj_0,a0
 	lea	tri_scr_0,a1
 	movea.l	a1,a2
-	move.w	angle,d5
+	move.w	angle,d4
+	bftst	d4{26:6} ; reversed indexation!
+	bne	non_extrema
+
+	; sin/cos extrema case -- only n*1/2*pi rotations
+	and.w	#$ff,d4
+	lsr.w	#6,d4
+	lea.l	sincosLUT,a3
+	move.w	0(a3,d4.w*8),d0 ; sin AND mask
+	move.w	2(a3,d4.w*8),d1 ; sin XOR mask
+	move.w	4(a3,d4.w*8),d2 ; cos AND mask
+	move.w	6(a3,d4.w*8),d3 ; cos XOR mask
+vert_extrema:
+	move.w	(a0)+,d4 ; v_in.x
+	move.w	(a0)+,d5 ; v_in.y
+	move.w	d4,d6
+	move.w	d5,d7
+
+	; transform vertex x-coord: cos * x - sin * y
+	and.w	d2,d4
+	eor.w	d3,d4
+	sub.w	d3,d4
+
+	and.w	d0,d5
+	eor.w	d1,d5
+	sub.w	d1,d5
+
+	sub.w	d5,d4
+	addi.w	#tx1_w/2,d4
+	move.w	d4,(a1)+ ; v_out.x
+
+	; transform vertex y-coord: sin * x + cos * y
+	and.w	d0,d6
+	eor.w	d1,d6
+	sub.w	d1,d6
+
+	and.w	d2,d7
+	eor.w	d3,d7
+	sub.w	d3,d7
+
+	add.w	d7,d6
+	addi.w	#tx1_h/2,d6
+	move.w	d6,(a1)+ ; v_out.y
+
+	cmpa.l	a2,a0
+	bcs	vert_extrema
+	bra	xform_done
+
+non_extrema:
+	move.w	d4,d0
+	jsr	lut_cos
+	move.w	d0,d1
+	move.w	d4,d0
+	jsr	lut_sin
 	moveq	#fract,d6 ; 68000 shift cannot do imm > 8
 	moveq	#0,d7     ; 68000 addx cannot do imm
 vert:
-	move.w	(a0)+,d3 ; v_in.x
-	move.w	(a0)+,d4 ; v_in.y
+	move.w	(a0)+,d2 ; v_in.x
+	move.w	(a0)+,d3 ; v_in.y
 
 	; transform vertex x-coord: cos * x - sin * y
-	move.w	d3,d0
-	move.w	d5,d1
-	jsr	mul_cos
-	move.l	d0,d2
+	move.w	d2,d4
+	muls.w	d1,d4
+	move.w	d3,d5
+	muls.w	d0,d5
 
-	move.w	d4,d0
-	move.w	d5,d1
-	jsr	mul_sin
-
-	sub.l	d0,d2
+	sub.l	d5,d4
 	; fx16.15 -> int16
-	asr.l	d6,d2
-	addx.w	d7,d2
+	asr.l	d6,d4
+	addx.w	d7,d4
 
-	addi.w	#tx1_w/2,d2
-	move.w	d2,(a1)+ ; v_out.x
+	addi.w	#tx1_w/2,d4
+	move.w	d4,(a1)+ ; v_out.x
 
 	; transform vertex y-coord: sin * x + cos * y
-	move.w	d3,d0
-	move.w	d5,d1
-	jsr	mul_sin
-	move.l	d0,d2
+	move.w	d2,d4
+	muls.w	d0,d4
+	move.w	d3,d5
+	muls.w	d1,d5
 
-	move.w	d4,d0
-	move.w	d5,d1
-	jsr	mul_cos
-
-	add.l	d0,d2
+	add.l	d5,d4
 	; fx16.15 -> int16
-	asr.l	d6,d2
-	addx.w	d7,d2
+	asr.l	d6,d4
+	addx.w	d7,d4
 
-	addi.w	#tx1_h/2,d2
-	move.w	d2,(a1)+ ; v_out.y
+	addi.w	#tx1_h/2,d4
+	move.w	d4,(a1)+ ; v_out.y
 
 	cmpa.l	a2,a0
 	bcs	vert
 
+xform_done:
 	; compute bases for scr-space tris
 	lea	tri_scr_0,a0
 	lea	pb_0,a1
@@ -251,40 +297,39 @@ get_coord:
 	sub.l	d2,d1
 	rts
 
-; multiply by sine
-; d0.w: multiplicand
-; d1.w: angle ticks -- [0, 2pi) -> [0, 256)
-; returns: d0.l: sine product as fx16.15 (d0[31] replicates sign)
+; get sine of non-1/2*pi-multiple angle
+; d0.w: angle ticks -- [0, 2pi) -> [0, 256)
+; returns: d0.w: sine as fx0.15 (d0[15] replicates sign)
 	mc68020
-mul_sin:
-	and.w	#$ff,d1
-	cmpi.b	#$80,d1
-	bcs	sign_done
+lut_sin:
+	and.w	#$ff,d0
+	cmpi.b	#$80,d0
+	bcs	positive
+	subi.b	#$80,d0 ; rotate back to positive
+	cmpi.b	#$40,d0
+	bcs	symmetry_negative
+	subi.b	#$80,d0
+	neg.b	d0
+symmetry_negative:
+	move.w	sinLUT(d0.w*2),d0
 	neg.w	d0
-	subi.b	#$80,d1
-sign_done:
-	cmpi.b	#$40,d1
-	bne	not_maximum
-	swap	d0
-	move.w	#0,d0
-	asr.l	#1,d0
 	rts
-not_maximum:
-	bcs	symmetry_done
-	subi.b	#$80,d1
-	neg.b	d1
-symmetry_done:
-	muls.w	sinLUT(d1.w*2),d0
+positive:
+	cmpi.b	#$40,d0
+	bcs	symmetry_positive
+	subi.b	#$80,d0
+	neg.b	d0
+symmetry_positive:
+	move.w	sinLUT(d0.w*2),d0
 	rts
 
-; multiply by cosine
-; d0.w: multiplicand
-; d1.w: angle ticks -- [0, 2pi) -> [0, 256)
-; returns; d0.l: cosine product as fx16.15 (d0[31] replicates sign)
+; get cosine of non-1/2*pi-multiple angle
+; d0.w: angle ticks -- [0, 2pi) -> [0, 256)
+; returns; d0.w: cosine as fx0.15 (d0[15] replicates sign)
 	mc68000
-mul_cos:
-	addi.w	#$40,d1
-	bra	mul_sin
+lut_cos:
+	addi.w	#$40,d0
+	bra	lut_sin
 
 angle:
 	dc.w	0
@@ -292,7 +337,7 @@ frame_i:
 	dc.w	0
 
 	align 4
-sinLUT:
+sinLUT: ; 15 fractional bits; for signed arithmetics
 	dc.w $0000, $0324, $0648, $096B, $0C8C, $0FAB, $12C8, $15E2
 	dc.w $18F9, $1C0C, $1F1A, $2224, $2528, $2827, $2B1F, $2E11
 	dc.w $30FC, $33DF, $36BA, $398D, $3C57, $3F17, $41CE, $447B
@@ -301,6 +346,11 @@ sinLUT:
 	dc.w $6A6E, $6C24, $6DCA, $6F5F, $70E3, $7255, $73B6, $7505
 	dc.w $7642, $776C, $7885, $798A, $7A7D, $7B5D, $7C2A, $7CE4
 	dc.w $7D8A, $7E1E, $7E9D, $7F0A, $7F62, $7FA7, $7FD9, $7FF6
+sincosLUT: ; 16-bit masks for sincos extrema; order: AND, XOR for sine and cosine, resp
+	dc.w  0,  0, -1,  0 ;   0 * pi
+	dc.w -1,  0,  0,  0 ; 1/2 * pi
+	dc.w  0,  0, -1, -1 ;   1 * pi
+	dc.w -1, -1,  0,  0 ; 3/2 * pi
 tri_obj_0:
 	dc.w	  0, -29
 	dc.w	 25,  14
