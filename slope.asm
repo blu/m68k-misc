@@ -81,13 +81,16 @@ param:
 	cmpa.l	a3,a2
 	bne	pixel
 
-	; test some low slope descents
+frac equ 6
+
+	; test some short low slopes
 	movea.l	#ea_texa1+tx1_w*$10,a1
 	lea.l	tx1_w(a1),a2
+	moveq	#0,d7
 	moveq	#4,d3
 case:
 	move.l	d3,d4
-	asl.l	#4,d4
+	asl.l	#frac,d4
 	divs	#4,d4
 	ext.l	d4
 	move.l	d4,d5
@@ -96,7 +99,8 @@ case:
 row:
 	movea.l	a3,a0
 	move.l	d5,d1
-	asr.l	#4,d1
+	asr.l	#frac,d1
+	addx.l	d7,d1
 	suba.l	d1,a0
 	move.l	#$44444444,d0
 	jsr	memset4
@@ -104,12 +108,37 @@ row:
 	adda.w	#tx1_w,a3
 	add.l	d4,d5
 	cmpa.l	a4,a3
-	bcs	row
+	bls	row
 
 	addq	#1,d3
 	adda.w	d3,a1
 	cmpa.l	a2,a1
 	bcs	case
+
+	; long low slope -- fract stress-test
+	movea.l	#ea_texa1+tx1_w*21,a1
+	moveq	#0,d7
+	moveq	#80,d3
+	move.l	d3,d4
+	asl.l	#frac,d4
+	divs	#39,d4
+	ext.l	d4
+	move.l	d4,d5
+	lea.l	(a1,d3),a3
+	lea.l	tx1_w*39(a1),a4
+row_long:
+	movea.l	a3,a0
+	move.l	d5,d1
+	asr.l	#frac,d1
+	addx.l	d7,d1
+	suba.l	d1,a0
+	move.l	#$44444444,d0
+	jsr	memset4
+
+	adda.w	#tx1_w,a3
+	add.l	d4,d5
+	cmpa.l	a4,a3
+	bls	row_long
 
 	moveq	#0,d0 ; syscall_exit
 	trap	#15
