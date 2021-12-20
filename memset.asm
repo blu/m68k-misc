@@ -15,7 +15,7 @@ tx1_h	equ 60
 COLUMNS	equ 64
 LINES	equ 48
 
-SPINS	equ $10000
+spins	equ $10000
 
 	; we want absolute addresses -- with moto/vasm that means
 	; just use org; don't use sections as they cause resetting
@@ -42,9 +42,6 @@ forward:
 	jsr	frame
 	adda.l	#1,a3
 
-	move.l	#SPINS,d0
-	jsr	spin
-
 	subi.b	#1,d5
 	bne	forward
 
@@ -56,9 +53,6 @@ reverse:
 
 	suba.l	#1,a3
 	jsr	frame
-
-	move.l	#SPINS,d0
-	jsr	spin
 
 	subi.b	#1,d5
 	bne	reverse
@@ -275,6 +269,17 @@ param:
 	adda.w	#tx1_w,a1
 	cmpa.l	a2,a1
 	blt	line
+
+	move.w	frame_i,d0
+	addi.w	#1,d0
+	move.w	d0,frame_i
+	movea.l	#ea_text1+tx1_w-4,a0
+	jsr	print_u16
+
+	ifd do_wait
+	move.l	#spins,d0
+	jsr	spin
+	endif
 	rts
 
 ; clear text channel B
@@ -303,9 +308,32 @@ LLloop:
 	blt	LLloop
 	rts
 
+; produce ascii from word
+; d0.w: word to print
+; a0: output address
+; clobbers: d1, a1
+print_u16:
+	lea	4(a0),a1
+nibble:
+	rol.w	#4,d0
+	move.b	d0,d1
+	andi.b	#$f,d1
+	addi.b	#'0',d1
+	cmpi.b	#'0'+10,d1
+	bcs	digit_ready
+	addi.b	#'a'-'9'-1,d1
+digit_ready:
+	move.b	d1,(a0)+
+	cmpa.l	a1,a0
+	bcs	nibble
+	rts
+
 ; spinloop
 ; d0: number of cycles
 spin:
 	subi.l	#1,d0
 	bne	spin
 	rts
+
+frame_i:
+	dc.w	0
