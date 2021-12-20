@@ -75,8 +75,8 @@ pattern:
 
 ; memset a buffer to a given value; 4B inner loop; only aligned writes
 ; a0: target
-; d0: content; value splatted to long word
-; d1: length
+; d0.l: content; value splatted to long word
+; d1.l: length
 ; returns: a0: last_written_address + 1
 ; clobbers: d2
 memset4:
@@ -88,7 +88,7 @@ memset4:
 	addi.l	#1,d2
 	subi.l	#1,d1
 L4head0:
-	cmp	#2,d1
+	cmp.l	#2,d1
 	bcs	L4tail0
 
 	btst	#1,d2
@@ -97,7 +97,7 @@ L4head0:
 ;	addi.l	#2,d2 ; for higher alignmen versions
 	subi.l	#2,d1
 L4head1:
-	cmp	#4,d1
+	cmp.l	#4,d1
 	bcs	L4tail1
 
 	move.l	d1,d2
@@ -119,8 +119,8 @@ L4done:
 
 ; memset a buffer to a given value; 8B inner loop; only aligned writes
 ; a0: target
-; d0: content; value splatted to long word
-; d1: length
+; d0.l: content; value splatted to long word
+; d1.l: length
 ; returns: a0: last_written_address + 1
 ; clobbers: d2
 memset8:
@@ -132,7 +132,7 @@ memset8:
 	addi.l	#1,d2
 	subi.l	#1,d1
 L8head0:
-	cmp	#2,d1
+	cmp.l	#2,d1
 	bcs	L8tail0
 
 	btst	#1,d2
@@ -141,7 +141,7 @@ L8head0:
 	addi.l	#2,d2
 	subi.l	#2,d1
 L8head1:
-	cmp	#4,d1
+	cmp.l	#4,d1
 	bcs	L8tail1
 
 	btst	#2,d2
@@ -150,7 +150,7 @@ L8head1:
 ;	addi.l	#4,d2 ; for higher alignmen versions
 	subi.l	#4,d1
 L8head2:
-	cmp	#8,d1
+	cmp.l	#8,d1
 	bcs	L8tail2
 
 	move.l	d1,d2
@@ -177,8 +177,8 @@ L8done:
 
 ; memset a buffer to a given value; 16B inner loop; only aligned writes
 ; a0: target
-; d0: content; value splatted to long word
-; d1: length
+; d0.l: content; value splatted to long word
+; d1.l: length
 ; returns: a0: last_written_address + 1
 ; clobbers: d2
 memset16:
@@ -190,7 +190,7 @@ memset16:
 	addi.l	#1,d2
 	subi.l	#1,d1
 L16head0:
-	cmp	#2,d1
+	cmp.l	#2,d1
 	bcs	L16tail0
 
 	btst	#1,d2
@@ -199,7 +199,7 @@ L16head0:
 	addi.l	#2,d2
 	subi.l	#2,d1
 L16head1:
-	cmp	#4,d1
+	cmp.l	#4,d1
 	bcs	L16tail1
 
 	btst	#2,d2
@@ -208,7 +208,7 @@ L16head1:
 	addi.l	#4,d2
 	subi.l	#4,d1
 L16head2:
-	cmp	#8,d1
+	cmp.l	#8,d1
 	bcs	L16tail2
 
 	btst	#3,d2
@@ -218,7 +218,7 @@ L16head2:
 ;	addi.l	#8,d2 ; for higher alignmen versions
 	subi.l	#8,d1
 L16head3:
-	cmp	#16,d1
+	cmp.l	#16,d1
 	bcs	L16tail3
 
 	move.l	d1,d2

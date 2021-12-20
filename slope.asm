@@ -233,8 +233,8 @@ get_coord:
 
 ; memset a buffer to a given value; 4B inner loop; only aligned writes
 ; a0: target
-; d0: content; value splatted to long word
-; d1: length
+; d0.l: content; value splatted to long word
+; d1.l: length
 ; returns: a0: last_written_address + 1
 ; clobbers: d2
 memset4:
