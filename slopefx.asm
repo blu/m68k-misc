@@ -82,6 +82,7 @@ param:
 	bne	pixel
 
 frac equ 6
+divisor equ 4
 
 	; test some short low slopes
 	movea.l	#ea_texa1+tx1_w*$10,a1
@@ -91,11 +92,11 @@ frac equ 6
 case:
 	move.l	d3,d4
 	asl.l	#frac,d4
-	divs	#4,d4
+	divs	#divisor,d4
 	ext.l	d4
 	move.l	d4,d5
 	lea.l	(a1,d3),a3
-	lea.l	tx1_w*4(a1),a4
+	lea.l	tx1_w*divisor(a1),a4
 row:
 	movea.l	a3,a0
 	move.l	d5,d1
@@ -115,17 +116,19 @@ row:
 	cmpa.l	a2,a1
 	bcs	case
 
+divlong	equ 39
+
 	; long low slope -- fract stress-test
-	movea.l	#ea_texa1+tx1_w*21,a1
+	movea.l	#ea_texa1+tx1_w*(tx1_h-divlong),a1
 	moveq	#0,d7
 	moveq	#80,d3
 	move.l	d3,d4
 	asl.l	#frac,d4
-	divs	#39,d4
+	divs	#divlong,d4
 	ext.l	d4
 	move.l	d4,d5
 	lea.l	(a1,d3),a3
-	lea.l	tx1_w*39(a1),a4
+	lea.l	tx1_w*divlong(a1),a4
 row_long:
 	movea.l	a3,a0
 	move.l	d5,d1

@@ -96,7 +96,7 @@ case:
 	swap	d4    ; remainder
 	move.w	d4,d7
 	lea.l	(a1,d3),a3
-	lea.l	tx1_w*4(a1),a4
+	lea.l	tx1_w*divisor(a1),a4
 row:
 	movea.l	a3,a0
 	move.l	d5,d1
@@ -122,8 +122,8 @@ frac_done:
 
 divlong	equ 39
 
-	; long low slope -- fract stress-test
-	movea.l	#ea_texa1+tx1_w*21,a1
+	; test long low slope
+	movea.l	#ea_texa1+tx1_w*(tx1_h-divlong),a1
 	moveq	#80,d3
 	move.l	d3,d4
 	divs	#divlong,d4
@@ -133,7 +133,7 @@ divlong	equ 39
 	swap	d4    ; remainder
 	move.w	d4,d7
 	lea.l	(a1,d3),a3
-	lea.l	tx1_w*39(a1),a4
+	lea.l	tx1_w*divlong(a1),a4
 row_long:
 	movea.l	a3,a0
 	move.l	d5,d1
