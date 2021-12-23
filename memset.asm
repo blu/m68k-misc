@@ -28,7 +28,7 @@ spins	equ $10000
 	move.l	a1,usp
 	andi.w	#$dfff,sr
 
-	; plot graph paper on channel B -- glyphs
+	; plot graph paper on channel B -- symbols
 	lea.l	pattern,a0
 	jsr	clear_text1
 again:
@@ -65,7 +65,7 @@ reverse:
 
 pattern:
 	dc.l	'0123', '4567', '89ab', 'cdef'
-	dc.l	$42434243, $42434243, $42434243, $42434243
+	dcb.l	4, $42434243
 
 ; memset a buffer to a given value; 4B inner loop; only aligned writes
 ; a0: target
@@ -280,6 +280,7 @@ param:
 	move.l	#spins,d0
 	jsr	spin
 	endif
+
 	rts
 
 ; clear text channel B
@@ -328,12 +329,15 @@ digit_ready:
 	bcs	nibble
 	rts
 
+	ifd do_wait
 ; spinloop
 ; d0: number of cycles
 spin:
 	subi.l	#1,d0
 	bne	spin
 	rts
+
+	endif
 
 frame_i:
 	dc.w	0
