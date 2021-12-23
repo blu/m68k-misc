@@ -25,14 +25,12 @@ tx1_h	equ 60
 
 	; create shape definition along vertical axis of symmetry
 	lea	arr,a0
-	lea	arr+24,a1
 	move.w	#15,d0
 init:
 	move.w	#0,(a0)+
 	subi.w	#1,d0
 	bne	init
-	move.l	#$20002,(a1)
-
+	; foliage
 	lea	arr,a0
 	jsr	add4
 	jsr	add4
@@ -42,6 +40,8 @@ init:
 	jsr	add4
 	lea	arr+16,a0
 	jsr	add4
+	; trunk
+	move.l	#$20002,(a0)
 
 	; draw symmetrically by newly-created definition
 	lea	arr,a0
