@@ -31,8 +31,7 @@ init:
 	move.w	#0,(a0)+
 	subi.w	#1,d0
 	bne	init
-	move.w	#2,(a1)+
-	move.w	#2,(a1)
+	move.l	#$20002,(a1)
 
 	lea	arr,a0
 	jsr	add4
@@ -46,11 +45,17 @@ init:
 
 	; draw symmetrically by newly-created definition
 	lea	arr,a0
-	movea.l #ea_text1,a1
+	movea.l	#ea_text1,a1
 row:
 	move.w	(a0)+,d0
 	beq	quit
-	jsr	draw_row
+symmetrical_dots:
+	neg.w	d0
+	move.b	#'*',15(a1,d0.w)
+	neg.w	d0
+	move.b	#'*',13(a1,d0.w)
+	subi.w	#1,d0
+	bne	symmetrical_dots
 	lea	tx1_w(a1),a1
 	bra	row
 quit:
@@ -59,22 +64,8 @@ quit:
 
 ; a0: output
 add4:
-	move.w	#1,d0
-loop:
-	add.w	d0,(a0)+
-	addi.w	#1,d0
-	cmpi.w	#4,d0
-	ble	loop
+	addi.l	#$10002,(a0)+
+	addi.l	#$30004,(a0)+
 	rts
 
-; d0.w: half-span
-; a1: output
-draw_row:
-	neg.w	d0
-	move.b	#'*',15(a1,d0.w)
-	neg.w	d0
-	move.b	#'*',13(a1,d0.w)
-	subi.w	#1,d0
-	bne	draw_row
-	rts
 arr:
