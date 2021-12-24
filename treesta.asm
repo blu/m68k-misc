@@ -26,10 +26,10 @@ tx1_h	equ 60
 	; draw symmetrically by static definition
 	lea	arr,a0
 	movea.l	#ea_text1,a1
+	moveq	#0,d0
 row:
 	move.b	(a0)+,d0
 	beq	quit
-	ext.w	d0
 symmetrical_dots:
 	neg.w	d0
 	move.b	#'*',15(a1,d0.w)
