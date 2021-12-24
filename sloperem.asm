@@ -302,7 +302,7 @@ L4head1:
 	move.l	d1,d2
 	lsr.l	#2,d2
 L4loop:
-	move.l	d0,(a0)+ ; imm just for the unit test; correct src: d0
+	move.l	d0,(a0)+
 	subi.l	#1,d2
 	bne	L4loop
 L4tail1:
