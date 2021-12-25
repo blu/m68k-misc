@@ -26,6 +26,12 @@ fract	equ 15
 	andi.w	#$dfff,sr
 
 frame:
+	; init tri bounds
+	lea	box,a4
+	move.w	#$7fff,box_min+r2_x(a4)
+	move.w	#$7fff,box_min+r2_y(a4)
+	move.w	#$8000,box_max+r2_x(a4)
+	move.w	#$8000,box_max+r2_y(a4)
 	; compute scr coords for obj-space tris
 	lea	tri_obj_0,a0
 	lea	tri_scr_0,a1
@@ -55,6 +61,15 @@ vert:
 	addi.w	#tx1_w/2,d2
 	move.w	d2,(a1)+ ; v_out.x
 
+	; update x-bounds
+	cmp.w	box_min+r2_x(a4),d2
+	bge	minx_done
+	move.w	d2,box_min+r2_x(a4)
+minx_done:
+	cmp.w	box_max+r2_x(a4),d2
+	ble	maxx_done
+	move.w	d2,box_max+r2_x(a4)
+maxx_done:
 	; transform vertex y-coord: sin * x + cos * y
 	move.w	d3,d0
 	move.w	d5,d1
@@ -73,6 +88,15 @@ vert:
 	addi.w	#tx1_h/2,d2
 	move.w	d2,(a1)+ ; v_out.y
 
+	; update y-bounds
+	cmp.w	box_min+r2_y(a4),d2
+	bge	miny_done
+	move.w	d2,box_min+r2_y(a4)
+miny_done:
+	cmp.w	box_max+r2_y(a4),d2
+	ble	maxy_done
+	move.w	d2,box_max+r2_y(a4)
+maxy_done:
 	cmpa.l	a2,a0
 	bcs	vert
 
@@ -85,11 +109,49 @@ base:
 	cmpa.l	a2,a0
 	bcs	base
 
-	; scan-convert the scr-space tris
+	; intersect tri bounds with screen bounds
+	moveq	#0,d4 ; scr_x0
+	cmp.w	box_min+r2_x(a4),d4
+	bge	scr_x0_done
+	move.w	box_min+r2_x(a4),d4
+scr_x0_done:
+	moveq	#0,d5 ; scr_y0
+	cmp.w	box_min+r2_y(a4),d5
+	bge	scr_y0_done
+	move.w	box_min+r2_y(a4),d5
+scr_y0_done:
+	move.w	#tx1_w-1,d2 ; scr_x1
+	cmp.w	box_max+r2_x(a4),d2
+	ble	scr_x1_done
+	move.w	box_max+r2_x(a4),d2
+scr_x1_done:
+	move.w	#tx1_h-1,d3 ; scr_y1
+	cmp.w	box_max+r2_y(a4),d3
+	ble	scr_y1_done
+	move.w	box_max+r2_y(a4),d3
+scr_y1_done:
 	movea.l	#ea_texa1,a2
-	movea.l	#ea_texa1+tx1_h*tx1_w,a3
-	moveq	#0,d4 ; scr_x
-	moveq	#0,d5 ; scr_y
+	movea.l	a2,a3
+
+	move.w	#tx1_w,d0
+	mulu.w	d5,d0
+	adda.w	d0,a2
+	adda.w	d4,a2 ; min ptr
+
+	move.w	#tx1_w,d0
+	mulu.w	d3,d0
+	adda.w	d0,a3
+	adda.w	d2,a3 ; max ptr
+
+	; repurpose tri bounds as { x1, x0, tx1_w-x1-1+x0 }
+	move.w	d2,0(a4)
+	move.w	d4,2(a4)
+	subi.w	#tx1_w-1,d2
+	neg.w	d2
+	add.w	d4,d2
+	move.w	d2,4(a4)
+
+	; scan-convert the scr-space tris
 	move.w	frame_i,d6
 pixel:
 	lea	pb_0,a0
@@ -116,14 +178,15 @@ skip:
 	bne	tri
 tri_done:
 	addi.w	#1,d4
-	cmpi.w	#tx1_w,d4
-	blt	param
-	moveq	#0,d4
+	cmp.w	0(a4),d4
+	bls	param
+	move.w	2(a4),d4
 	addi.w	#1,d5
+	adda.w	4(a4),a2
 param:
 	adda.l	#1,a2
 	cmpa.l	a3,a2
-	bne	pixel
+	bls	pixel
 
 	addi.w	#4,angle
 	move.w	frame_i,d0
@@ -162,6 +225,12 @@ digit_ready:
 r2_x	so.w 1
 r2_y	so.w 1
 r2_size = __SO
+
+; struct box
+	clrso
+box_min	so.w 2 ; r2
+box_max	so.w 2 ; r2
+box_size = __SO
 
 ; struct tri
 	clrso
@@ -290,6 +359,9 @@ angle:
 	dc.w	0
 frame_i:
 	dc.w	0
+box:
+	ds.w	2 ; r2
+	ds.w	2 ; r2
 
 	align 4
 sinLUT:
