@@ -17,6 +17,10 @@ LINES	equ 48
 
 spins	equ $10000
 
+	ifnd memset
+memset	equ memset8
+	endif
+
 	; we want absolute addresses -- with moto/vasm that means
 	; just use org; don't use sections as they cause resetting
 	; of the current offset for generation of relocatable code
@@ -256,7 +260,7 @@ line:
 	movea.l	a1,a0
 	move.l	#$41414141,d0
 	move.l	d4,d1
-	jsr	memset8
+	jsr	memset
 
 	cmpi.w	#LINES/(COLUMNS-LINES),d3
 	bne	param
