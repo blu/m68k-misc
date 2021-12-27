@@ -148,27 +148,29 @@ row_long:
 
 ; clear text channel B
 ; a0: pattern ptr
-; clobbers d0-d3
+; clobbers d0-d3, a1
 clear_text1:
 	movem.l	(a0),d0-d3
 	movea.l	#ea_text1,a0
+	lea	tx1_w*tx1_h(a0),a1
 Lloop:
 	movem.l	d0-d3,(a0)
-	adda.l	#$4*4,a0 ; emits lea (an,16),an
-	cmpa.l	#ea_text1+tx1_w*tx1_h,a0
+	adda.w	#4*4,a0
+	cmpa.l	a1,a0
 	blt	Lloop
 	rts
 
 ; clear attr channel B
 ; a0: pattern ptr
-; clobbers d0-d3
+; clobbers d0-d3, a1
 clear_texa1:
 	movem.l (a0),d0-d3
 	movea.l	#ea_texa1,a0
+	lea	tx1_w*tx1_h(a0),a1
 LLloop:
 	movem.l	d0-d3,(a0)
-	adda.l	#$4*4,a0 ; emits lea (an,16),an
-	cmpa.l	#ea_texa1+tx1_w*tx1_h,a0
+	adda.w	#4*4,a0
+	cmpa.l	a1,a0
 	blt	LLloop
 	rts
 
