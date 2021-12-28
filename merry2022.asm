@@ -13,11 +13,11 @@ tx1_w	equ 80
 tx1_h	equ 60
 
 quelen	equ 4
-questep	equ 4
+questep	equ 2
 
 fract	equ 15
 
-spins	equ $8000
+spins	equ $57e0
 
 	; we want absolute addresses -- with moto/vasm that means
 	; just use org; don't use sections as they cause resetting
@@ -37,9 +37,9 @@ frame:
 
 	move.b	#quelen,queue
 que:
-	; compute scr coords for obj-space tris
-	lea	tri_obj_0,a0
-	lea	tri_scr_0,a1
+	; compute scr coords for obj-space cinqs
+	lea	cinq_obj_0,a0
+	lea	cinq_scr_0,a1
 	movea.l	a1,a2
 	move.w	angle,d5
 	moveq	#fract,d6 ; 68000 shift cannot do imm > 8
@@ -87,58 +87,72 @@ vert:
 	cmpa.l	a2,a0
 	bcs	vert
 
-	; scan-convert the scr-space tri edges
-	lea	tri_scr_0,a2
-	lea	tri_end,a3
+	; scan-convert the scr-space cinq edges
+	lea	cinq_scr_0,a2
+	lea	cinq_end,a3
 	movea.l	#ea_texa1,a6
-tri:
-	move.w	tri_p0+r2_x(a2),d0
-	move.w	tri_p0+r2_y(a2),d1
-	move.w	tri_p1+r2_x(a2),d2
-	move.w	tri_p1+r2_y(a2),d3
+cinq:
+	move.w	cinq_p0+r2_x(a2),d0
+	move.w	cinq_p0+r2_y(a2),d1
+	move.w	cinq_p1+r2_x(a2),d2
+	move.w	cinq_p1+r2_y(a2),d3
 	movea.l	a6,a0
 	jsr	line
 
-	move.w	tri_p1+r2_x(a2),d0
-	move.w	tri_p1+r2_y(a2),d1
-	move.w	tri_p2+r2_x(a2),d2
-	move.w	tri_p2+r2_y(a2),d3
+	move.w	cinq_p1+r2_x(a2),d0
+	move.w	cinq_p1+r2_y(a2),d1
+	move.w	cinq_p2+r2_x(a2),d2
+	move.w	cinq_p2+r2_y(a2),d3
 	movea.l	a6,a0
 	jsr	line
 
-	move.w	tri_p2+r2_x(a2),d0
-	move.w	tri_p2+r2_y(a2),d1
-	move.w	tri_p0+r2_x(a2),d2
-	move.w	tri_p0+r2_y(a2),d3
+	move.w	cinq_p2+r2_x(a2),d0
+	move.w	cinq_p2+r2_y(a2),d1
+	move.w	cinq_p3+r2_x(a2),d2
+	move.w	cinq_p3+r2_y(a2),d3
 	movea.l	a6,a0
 	jsr	line
 
-	adda.l	#tri_size,a2
+	move.w	cinq_p3+r2_x(a2),d0
+	move.w	cinq_p3+r2_y(a2),d1
+	move.w	cinq_p4+r2_x(a2),d2
+	move.w	cinq_p4+r2_y(a2),d3
+	movea.l	a6,a0
+	jsr	line
+
+	move.w	cinq_p4+r2_x(a2),d0
+	move.w	cinq_p4+r2_y(a2),d1
+	move.w	cinq_p0+r2_x(a2),d2
+	move.w	cinq_p0+r2_y(a2),d3
+	movea.l	a6,a0
+	jsr	line
+
+	adda.l	#cinq_size,a2
 	cmpa.l	a3,a2
-	bne	tri
+	bne	cinq
 
 	addi.w	#questep,angle
 	subi.b	#1,queue
 	bne	que
 
 	lea	tx1_w*(tx1_h-30)+(tx1_w-64)/2(a6),a0
-	lea	tri_end,a1
+	lea	cinq_end,a1
 	jsr	pixmap
 
 	btst.b	#7,frame_i+1
 	bne	msg_alt
 
 	lea	tx1_w*(tx1_h-20)+(tx1_w-64)/2(a6),a0
-	lea	tri_end+192,a1
+	lea	cinq_end+192,a1
 	jsr	pixmap
 	bra	msg_done
 msg_alt:
 	lea	tx1_w*(tx1_h-20)+(tx1_w-64)/2(a6),a0
-	lea	tri_end+64,a1
+	lea	cinq_end+64,a1
 	jsr	pixmap
 
 	lea	tx1_w*(tx1_h-10)+(tx1_w-64)/2(a6),a0
-	lea	tri_end+128,a1
+	lea	cinq_end+128,a1
 	jsr	pixmap
 msg_done:
 	subi.w	#quelen*questep-1,angle
@@ -190,12 +204,14 @@ r2_x	so.w 1
 r2_y	so.w 1
 r2_size = __SO
 
-; struct tri
+; struct cinq
 	clrso
-tri_p0	so.w 2 ; r2
-tri_p1	so.w 2 ; r2
-tri_p2	so.w 2 ; r2
-tri_size = __SO
+cinq_p0	so.w 2 ; r2
+cinq_p1	so.w 2 ; r2
+cinq_p2	so.w 2 ; r2
+cinq_p3	so.w 2 ; r2
+cinq_p4	so.w 2 ; r2
+cinq_size = __SO
 
 ; multiply by sine
 ; d0.w: multiplicand
@@ -339,7 +355,7 @@ byte:
 bit:
 	lsl.b	d1
 	bcc	pixel_done
-	move.b	#$4d,(a0,d0.w)
+	move.b	#$4e,(a0,d0.w)
 pixel_done:
 	addi.w	#1,d0
 	bftst	d0{29:3}
@@ -385,13 +401,15 @@ sinLUT:
 	dc.w $6A6E, $6C24, $6DCA, $6F5F, $70E3, $7255, $73B6, $7505
 	dc.w $7642, $776C, $7885, $798A, $7A7D, $7B5D, $7C2A, $7CE4
 	dc.w $7D8A, $7E1E, $7E9D, $7F0A, $7F62, $7FA7, $7FD9, $7FF6
-tri_obj_0:
+cinq_obj_0:
 	dc.w	  0, -29
-	dc.w	 25,  14
-	dc.w	-25,  14
-tri_scr_0:
-	ds.w	(tri_scr_0-tri_obj_0)/2
-tri_end:
+	dc.w	 25,  29
+	dc.w	-29, -14
+	dc.w	 29, -14
+	dc.w	-25,  29
+cinq_scr_0:
+	ds.w	(cinq_scr_0-cinq_obj_0)/2
+cinq_end:
 	incbin "msga.bin"
 	incbin "msgb.bin"
 	incbin "msgc.bin"
