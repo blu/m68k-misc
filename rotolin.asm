@@ -27,7 +27,14 @@ spins	equ $8000
 	move.l	a1,usp
 	andi.w	#$dfff,sr
 
+	; plot graph paper on channel B -- symbols
+	lea.l	pattern,a0
+	jsr	clear_text1
 frame:
+	; plot graph paper on channel B -- colors
+	lea.l	pattern+4*4,a0
+	jsr	clear_texa1
+
 	; compute scr coords for obj-space tris
 	lea	tri_obj_0,a0
 	lea	tri_scr_0,a1
@@ -81,26 +88,27 @@ vert:
 	; scan-convert the scr-space tri edges
 	lea	tri_scr_0,a2
 	lea	tri_end,a3
+	movea.l	#ea_texa1,a6
 tri:
 	move.w	tri_p0+r2_x(a2),d0
 	move.w	tri_p0+r2_y(a2),d1
 	move.w	tri_p1+r2_x(a2),d2
 	move.w	tri_p1+r2_y(a2),d3
-	movea.l	#ea_texa1,a0
+	movea.l	a6,a0
 	jsr	line
 
 	move.w	tri_p1+r2_x(a2),d0
 	move.w	tri_p1+r2_y(a2),d1
 	move.w	tri_p2+r2_x(a2),d2
 	move.w	tri_p2+r2_y(a2),d3
-	movea.l	#ea_texa1,a0
+	movea.l	a6,a0
 	jsr	line
 
 	move.w	tri_p2+r2_x(a2),d0
 	move.w	tri_p2+r2_y(a2),d1
 	move.w	tri_p0+r2_x(a2),d2
 	move.w	tri_p0+r2_y(a2),d3
-	movea.l	#ea_texa1,a0
+	movea.l	a6,a0
 	jsr	line
 
 	adda.l	#tri_size,a2
@@ -154,6 +162,34 @@ spin:
 	rts
 
 	endif
+
+; clear text channel B
+; a0: pattern ptr
+; clobbers d0-d3, a1
+clear_text1:
+	movem.l	(a0),d0-d3
+	movea.l	#ea_text1,a0
+	lea	tx1_w*tx1_h(a0),a1
+Lloop:
+	movem.l	d0-d3,(a0)
+	adda.w	#4*4,a0
+	cmpa.l	a1,a0
+	blt	Lloop
+	rts
+
+; clear attr channel B
+; a0: pattern ptr
+; clobbers d0-d3, a1
+clear_texa1:
+	movem.l (a0),d0-d3
+	movea.l	#ea_texa1,a0
+	lea	tx1_w*tx1_h(a0),a1
+LLloop:
+	movem.l	d0-d3,(a0)
+	adda.w	#4*4,a0
+	cmpa.l	a1,a0
+	blt	LLloop
+	rts
 
 ; struct r2
 	clrso
@@ -224,6 +260,8 @@ line:
 	neg.w	d4
 	neg.w	d6
 dx_done:
+	addi.w	#1,d4
+
 	moveq	#1,d7
 	movea.w	#tx1_w,a1
 	move.w	d3,d5
@@ -233,11 +271,13 @@ dx_done:
 	neg.w	d7
 	movea.w	#-tx1_w,a1
 dy_done:
+	addi.w	#1,d5
+
 	cmp.w	d4,d5
 	bge	high_slope
 
 	; low slope: iterate along x
-	move.w	d5,d3
+	moveq	#0,d3
 loop_x:
 	ifd do_clip
 	tst.w	d0
@@ -249,7 +289,7 @@ loop_x:
 	cmp.w	#tx1_h,d1
 	bge	advance_x
 	endif
-	move.b	angle+1,(a0)
+	move.b	#$41,(a0)
 advance_x:
 	adda.w	d6,a0
 	add.w	d6,d0
@@ -264,7 +304,7 @@ x_done:
 	bne	loop_x
 	rts
 high_slope: ; iterate along y
-	move.w	d4,d2
+	moveq	#0,d2
 loop_y:
 	ifd do_clip
 	tst.w	d0
@@ -276,7 +316,7 @@ loop_y:
 	cmp.w	#tx1_h,d1
 	bge	advance_y
 	endif
-	move.b	angle+1,(a0)
+	move.b	#$41,(a0)
 advance_y:
 	adda.w	a1,a0
 	add.w	d7,d1
@@ -295,6 +335,10 @@ angle:
 	dc.w	0
 frame_i:
 	dc.w	0
+
+pattern:
+	dc.l	'0123', '4567', '89ab', 'cdef'
+	dcb.l	4, $42434243
 
 	align 4
 sinLUT:
