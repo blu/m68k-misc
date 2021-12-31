@@ -28,8 +28,37 @@ tx1_h	equ 60
 ;	jsr	clear_text1
 
 	; plot graph paper on channel B -- colors
-;	lea.l	pattern+4*4,a0
-;	jsr	clear_texa1
+	lea.l	pattern+4*4,a0
+	jsr	clear_texa1
+
+	lea	tri_0,a2
+	lea	tri_end,a3
+	movea.l	#ea_texa1,a6
+tri_edge:
+	move.w	tri_p0+r2_x(a2),d0
+	move.w	tri_p0+r2_y(a2),d1
+	move.w	tri_p1+r2_x(a2),d2
+	move.w	tri_p1+r2_y(a2),d3
+	movea.l	a6,a0
+	jsr	line
+
+	move.w	tri_p1+r2_x(a2),d0
+	move.w	tri_p1+r2_y(a2),d1
+	move.w	tri_p2+r2_x(a2),d2
+	move.w	tri_p2+r2_y(a2),d3
+	movea.l	a6,a0
+	jsr	line
+
+	move.w	tri_p2+r2_x(a2),d0
+	move.w	tri_p2+r2_y(a2),d1
+	move.w	tri_p0+r2_x(a2),d2
+	move.w	tri_p0+r2_y(a2),d3
+	movea.l	a6,a0
+	jsr	line
+
+	adda.w	#tri_size,a2
+	cmp.l	a3,a2
+	bcs	tri_edge
 
 	; compute bases for a few on-screeen tris
 	lea	tri_0,a0
@@ -37,8 +66,8 @@ tx1_h	equ 60
 	lea	tri_end,a2
 cpb:
 	jsr	init_pb
-	adda.l	#tri_size,a0
-	adda.l	#pb_size,a1
+	adda.w	#tri_size,a0
+	adda.w	#pb_size,a1
 	cmpa.l	a2,a0
 	bcs	cpb
 
@@ -68,7 +97,7 @@ tri:
 	bra	tri_done
 skip:
 	addi.b	#1,d7
-	adda.l	#pb_size,a0
+	adda.w	#pb_size,a0
 	cmpa.l	a1,a0
 	bne	tri
 tri_done:
@@ -78,7 +107,7 @@ tri_done:
 	moveq	#0,d5
 	addi.w	#1,d6
 param:
-	adda.l	#1,a2
+	adda.w	#1,a2
 	cmpa.l	a3,a2
 	bne	pixel
 
@@ -204,10 +233,102 @@ get_coord:
 	sub.l	d2,d1
 	rts
 
+; draw a line in tx1-sized fb; line must be longer than a single dot
+; d0.w: x0
+; d1.w: y0
+; d2.w: x1
+; d3.w: y1
+; a0: fb start addr
+; clobbers: d4-d7, a1
+line:
+	; compute x0,y0 addr in fb
+	move.w	d1,d4
+	muls.w	#tx1_w,d4
+	adda.l	d4,a0
+	adda.w	d0,a0
+
+	moveq	#1,d6
+	move.w	d2,d4
+	sub.w	d0,d4 ; dx
+	bge	dx_done
+	neg.w	d4
+	neg.w	d6
+dx_done:
+	addi.w	#1,d4
+
+	moveq	#1,d7
+	movea.w	#tx1_w,a1
+	move.w	d3,d5
+	sub.w	d1,d5 ; dy
+	bge	dy_done
+	neg.w	d5
+	neg.w	d7
+	movea.w	#-tx1_w,a1
+dy_done:
+	addi.w	#1,d5
+
+	cmp.w	d4,d5
+	bge	high_slope
+
+	; low slope: iterate along x
+	moveq	#0,d3
+loop_x:
+	ifd do_clip
+	tst.w	d0
+	blt	advance_x
+	cmp.w	#tx1_w,d0
+	bge	advance_x
+	tst.w	d1
+	blt	advance_x
+	cmp.w	#tx1_h,d1
+	bge	advance_x
+	endif
+	move.b	#$41,(a0)
+advance_x:
+	adda.w	d6,a0
+	add.w	d6,d0
+	add.w	d5,d3
+	cmp.w	d4,d3
+	bcs	x_done
+	adda.w	a1,a0
+	sub.w	d4,d3
+	add.w	d7,d1
+x_done:
+	cmp.w	d0,d2
+	bne	loop_x
+	rts
+high_slope: ; iterate along y
+	moveq	#0,d2
+loop_y:
+	ifd do_clip
+	tst.w	d0
+	blt	advance_y
+	cmp.w	#tx1_w,d0
+	bge	advance_y
+	tst.w	d1
+	blt	advance_y
+	cmp.w	#tx1_h,d1
+	bge	advance_y
+	endif
+	move.b	#$41,(a0)
+advance_y:
+	adda.w	a1,a0
+	add.w	d7,d1
+	add.w	d4,d2
+	cmp.w	d5,d2
+	bcs	y_done
+	adda.w	d6,a0
+	sub.w	d5,d2
+	add.w	d6,d0
+y_done:
+	cmp.w	d1,d3
+	bne	loop_y
+	rts
+
 	align 2
 pattern:
 	dc.l	'0123', '4567', '89ab', 'cdef'
-	dc.l	$44444444, $44444444, $44444444, $44444444
+	dcb.l	4, $0
 tri_0:
 	dc.w	79,  0
 	dc.w	49, 31
