@@ -1,46 +1,4 @@
-ea_user  equ $020000
-ea_stack equ $080000
-ea_vicky equ $c40000
-ea_text0 equ $c60000
-ea_texa0 equ $c68000
-ea_text1 equ $ca0000
-ea_texa1 equ $ca8000
-
-; some hw regs
-hw_vicky_master equ $0000
-hw_vicky_border equ $0004
-hw_vicky_cursor equ $0010
-
-; some fields in hw regs
-pos_master_mode   equ $8
-msk_master_mode   equ $3
-
-pos_master_clk    equ $f
-msk_master_clk    equ $1
-
-pos_border_enable equ $0
-msk_border_enable equ $1
-
-pos_cursor_enable equ $0
-msk_cursor_enable equ $1
-
-; some values in fields in hw regs
-master_mode_640x480 equ %00
-master_mode_800x600 equ %01
-master_mode_640x400 equ %11
-
-master_clk_25mhz    equ %0
-master_clk_40mhz    equ %1
-
-; some hw reg helpers (-spaces CLI required)
-reset_master_mode equ ~((msk_master_mode << pos_master_mode) | (msk_master_clk << pos_master_clk))
-set_master_mode_640x480 equ ((msk_master_mode & master_mode_640x480) << pos_master_mode) | ((msk_master_clk & master_clk_25mhz) << pos_master_clk)
-set_master_mode_800x600 equ ((msk_master_mode & master_mode_800x600) << pos_master_mode) | ((msk_master_clk & master_clk_40mhz) << pos_master_clk)
-set_master_mode_640x400 equ ((msk_master_mode & master_mode_640x400) << pos_master_mode) | ((msk_master_clk & master_clk_25mhz) << pos_master_clk)
-
-reset_border_enable equ ~(msk_border_enable << pos_border_enable)
-
-reset_cursor_enable equ ~(msk_cursor_enable << pos_cursor_enable)
+	include "plat_a2560k.inc"
 
 tx0_w	equ 100
 tx0_h	equ 75
@@ -72,11 +30,11 @@ tx1_h	equ 60
 	and.b	#reset_cursor_enable,d2
 	move.l	d2,hw_vicky_cursor(a0)
 
-	; plot graph paper on channel A -- symbols
+	; clear channel A -- symbols
 	lea.l	pattern,a0
 	jsr	clear_text0
 
-	; plot graph paper on channel A -- colors
+	; clear channel A -- colors
 	lea.l	pattern+4*4,a0
 	jsr	clear_texa0
 .again:
@@ -176,6 +134,7 @@ tx1_h	equ 60
 	clrso
 r2_x	so.w 1
 r2_y	so.w 1
+r2_size = __SO
 
 ; struct tri
 	clrso
@@ -364,7 +323,7 @@ frame_i:
 	dc.w	0
 pattern:
 	dcb.l	4, '    '
-	dcb.l	4, $f0f0f0f0
+	dcb.l	4, $70707070
 tri_0:
 	dc.w	79,  0
 	dc.w	49, 31
