@@ -6,8 +6,44 @@ ea_texa0 equ $c68000
 ea_text1 equ $ca0000
 ea_texa1 equ $ca8000
 
-tx0_w	equ 72
-tx0_h	equ 56
+; some hw regs
+hw_vicky_master equ $0000
+hw_vicky_border equ $0004
+hw_vicky_cursor equ $0010
+
+; some fields in hw regs
+pos_master_mode   equ $8
+msk_master_mode   equ $3
+
+pos_master_clk    equ $f
+msk_master_clk    equ $1
+
+pos_border_enable equ $0
+msk_border_enable equ $1
+
+pos_cursor_enable equ $0
+msk_cursor_enable equ $1
+
+; some values in fields in hw regs
+master_mode_640x480 equ %00
+master_mode_800x600 equ %01
+master_mode_640x400 equ %11
+
+master_clk_25mhz    equ %0
+master_clk_40mhz    equ %1
+
+; some hw reg helpers (-spaces CLI required)
+reset_master_mode equ ~((msk_master_mode << pos_master_mode) | (msk_master_clk << pos_master_clk))
+set_master_mode_640x480 equ ((msk_master_mode & master_mode_640x480) << pos_master_mode) | ((msk_master_clk & master_clk_25mhz) << pos_master_clk)
+set_master_mode_800x600 equ ((msk_master_mode & master_mode_800x600) << pos_master_mode) | ((msk_master_clk & master_clk_40mhz) << pos_master_clk)
+set_master_mode_640x400 equ ((msk_master_mode & master_mode_640x400) << pos_master_mode) | ((msk_master_clk & master_clk_25mhz) << pos_master_clk)
+
+reset_border_enable equ ~(msk_border_enable << pos_border_enable)
+
+reset_cursor_enable equ ~(msk_cursor_enable << pos_cursor_enable)
+
+tx0_w	equ 100
+tx0_h	equ 75
 
 tx1_w	equ 80
 tx1_h	equ 60
@@ -23,18 +59,31 @@ tx1_h	equ 60
 	move.l	a1,usp
 	andi.w	#$dfff,sr
 
-	; plot graph paper on channel B -- symbols
-;	lea.l	pattern,a0
-;	jsr	clear_text1
+	; set channel A to 800x600, text 100x75 fb (8x8 char matrix)
+	movea.l	#ea_vicky,a0
+	move.l	hw_vicky_master(a0),d0
+	move.l	hw_vicky_border(a0),d1
+	move.l	hw_vicky_cursor(a0),d2
+	and.w	#$ffff&reset_master_mode,d0
+	or.w	#set_master_mode_800x600,d0
+	move.l	d0,hw_vicky_master(a0)
+	and.b	#reset_border_enable,d1
+	move.l	d1,hw_vicky_border(a0)
+	and.b	#reset_cursor_enable,d2
+	move.l	d2,hw_vicky_cursor(a0)
 
-	; plot graph paper on channel B -- colors
+	; plot graph paper on channel A -- symbols
+	lea.l	pattern,a0
+	jsr	clear_text0
+
+	; plot graph paper on channel A -- colors
 	lea.l	pattern+4*4,a0
-	jsr	clear_texa1
-
+	jsr	clear_texa0
+.again:
 	lea	tri_0,a2
 	lea	tri_end,a3
-	movea.l	#ea_texa1,a6
-tri_edge:
+	movea.l	#ea_texa0,a6
+.tri_edge:
 	move.w	tri_p0+r2_x(a2),d0
 	move.w	tri_p0+r2_y(a2),d1
 	move.w	tri_p1+r2_x(a2),d2
@@ -58,89 +107,70 @@ tri_edge:
 
 	adda.w	#tri_size,a2
 	cmp.l	a3,a2
-	bcs	tri_edge
+	bcs	.tri_edge
 
 	; compute bases for a few on-screeen tris
 	lea	tri_0,a0
 	lea	pb_0,a1
 	lea	tri_end,a2
-cpb:
+.cpb:
 	jsr	init_pb
 	adda.w	#tri_size,a0
 	adda.w	#pb_size,a1
 	cmpa.l	a2,a0
-	bcs	cpb
+	bcs	.cpb
 
-	movea.l	#ea_texa1,a2
-	movea.l	#ea_texa1+tx1_h*tx1_w,a3
+	movea.l	#ea_texa0,a2
+	lea	tx0_h*tx0_w(a2),a3
 	moveq	#0,d5 ; curr_x
 	moveq	#0,d6 ; curr_y
-pixel:
+.pixel:
 	lea	pb_0,a0
 	lea	pb_0+(tri_end-tri_0)/tri_size*pb_size,a1
 	moveq	#$47,d7
-tri:
+.tri:
 	move.w	d5,d0
 	move.w	d6,d1
 	jsr	get_coord
 
 	; if {s|t} < 0 || (s+t) > area then pixel is outside
-	cmpi.l	#0,d0
-	blt	skip
-	cmpi.l	#0,d1
-	blt	skip
+	tst.l	d0
+	blt	.skip
+	tst.l	d1
+	blt	.skip
 	add.l	d1,d0
 	cmp.l	pb_area(a0),d0
-	bgt	skip
+	bgt	.skip
 	; tri pixel -- plot and exit tri loop
 	move.b	d7,(a2)
-	bra	tri_done
-skip:
+	bra	.tri_done
+.skip:
 	addi.b	#1,d7
 	adda.w	#pb_size,a0
 	cmpa.l	a1,a0
-	bne	tri
-tri_done:
+	bne	.tri
+.tri_done:
 	addi.w	#1,d5
-	cmpi.w	#tx1_w,d5
-	blt	param
+	cmpi.w	#tx0_w,d5
+	blt	.param
 	moveq	#0,d5
 	addi.w	#1,d6
-param:
+.param:
 	adda.w	#1,a2
 	cmpa.l	a3,a2
-	bne	pixel
+	bne	.pixel
 
+	move.w	frame_i,d0
+	addi.w	#1,d0
+	move.w	d0,frame_i
+	movea.l	#ea_text0+tx0_w-4,a0
+	jsr	print_u16
+
+	bra	.again
+
+	; some day
 	moveq	#0,d0 ; syscall_exit
 	trap	#15
-
-; clear text channel B
-; a0: pattern ptr
-; clobbers d0-d3, a1
-clear_text1:
-	movem.l	(a0),d0-d3
-	movea.l	#ea_text1,a0
-	lea	tx1_w*tx1_h(a0),a1
-Lloop:
-	movem.l	d0-d3,(a0)
-	adda.w	#4*4,a0
-	cmpa.l	a1,a0
-	blt	Lloop
-	rts
-
-; clear attr channel B
-; a0: pattern ptr
-; clobbers d0-d3, a1
-clear_texa1:
-	movem.l (a0),d0-d3
-	movea.l	#ea_texa1,a0
-	lea	tx1_w*tx1_h(a0),a1
-LLloop:
-	movem.l	d0-d3,(a0)
-	adda.w	#4*4,a0
-	cmpa.l	a1,a0
-	blt	LLloop
-	rts
 
 ; struct r2
 	clrso
@@ -233,7 +263,8 @@ get_coord:
 	sub.l	d2,d1
 	rts
 
-; draw a line in tx1-sized fb; line must be longer than a single dot
+	inline
+; draw a line in tx0-sized fb; line must be longer than a single dot
 ; d0.w: x0
 ; d1.w: y0
 ; d2.w: x1
@@ -243,92 +274,97 @@ get_coord:
 line:
 	; compute x0,y0 addr in fb
 	move.w	d1,d4
-	muls.w	#tx1_w,d4
+	muls.w	#tx0_w,d4
 	adda.l	d4,a0
 	adda.w	d0,a0
 
 	moveq	#1,d6
 	move.w	d2,d4
 	sub.w	d0,d4 ; dx
-	bge	dx_done
+	bge	.dx_done
 	neg.w	d4
 	neg.w	d6
-dx_done:
+.dx_done:
 	addi.w	#1,d4
 
 	moveq	#1,d7
-	movea.w	#tx1_w,a1
+	movea.w	#tx0_w,a1
 	move.w	d3,d5
 	sub.w	d1,d5 ; dy
-	bge	dy_done
+	bge	.dy_done
 	neg.w	d5
 	neg.w	d7
-	movea.w	#-tx1_w,a1
-dy_done:
+	movea.w	#-tx0_w,a1
+.dy_done:
 	addi.w	#1,d5
 
 	cmp.w	d4,d5
-	bge	high_slope
+	bge	.high_slope
 
 	; low slope: iterate along x
 	moveq	#0,d3
-loop_x:
+.loop_x:
 	ifd do_clip
 	tst.w	d0
-	blt	advance_x
-	cmp.w	#tx1_w,d0
-	bge	advance_x
+	blt	.advance_x
+	cmp.w	#tx0_w,d0
+	bge	.advance_x
 	tst.w	d1
-	blt	advance_x
-	cmp.w	#tx1_h,d1
-	bge	advance_x
+	blt	.advance_x
+	cmp.w	#tx0_h,d1
+	bge	.advance_x
 	endif
 	move.b	#$41,(a0)
-advance_x:
+.advance_x:
 	adda.w	d6,a0
 	add.w	d6,d0
 	add.w	d5,d3
 	cmp.w	d4,d3
-	bcs	x_done
+	bcs	.x_done
 	adda.w	a1,a0
 	sub.w	d4,d3
 	add.w	d7,d1
-x_done:
+.x_done:
 	cmp.w	d0,d2
-	bne	loop_x
+	bne	.loop_x
 	rts
-high_slope: ; iterate along y
+.high_slope: ; iterate along y
 	moveq	#0,d2
-loop_y:
+.loop_y:
 	ifd do_clip
 	tst.w	d0
-	blt	advance_y
-	cmp.w	#tx1_w,d0
-	bge	advance_y
+	blt	.advance_y
+	cmp.w	#tx0_w,d0
+	bge	.advance_y
 	tst.w	d1
-	blt	advance_y
-	cmp.w	#tx1_h,d1
-	bge	advance_y
+	blt	.advance_y
+	cmp.w	#tx0_h,d1
+	bge	.advance_y
 	endif
 	move.b	#$41,(a0)
-advance_y:
+.advance_y:
 	adda.w	a1,a0
 	add.w	d7,d1
 	add.w	d4,d2
 	cmp.w	d5,d2
-	bcs	y_done
+	bcs	.y_done
 	adda.w	d6,a0
 	sub.w	d5,d2
 	add.w	d6,d0
-y_done:
+.y_done:
 	cmp.w	d1,d3
-	bne	loop_y
+	bne	.loop_y
 	rts
 
-	align 2
+	einline
+
+	include "util.inc"
+
+frame_i:
+	dc.w	0
 pattern:
-	dc.l	'0123', '4567', '89ab', 'cdef'
-	dcb.l	4, $0
+	dcb.l	4, '    '
+	dcb.l	4, $f0f0f0f0
 tri_0:
 	dc.w	79,  0
 	dc.w	49, 31
