@@ -7,7 +7,7 @@ tx1_w	equ 80
 tx1_h	equ 60
 
 quelen	equ 4
-questep	equ 2
+questep	equ 4
 
 fract	equ 15
 
