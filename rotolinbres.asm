@@ -30,7 +30,7 @@ spins	equ $8000
 	; plot graph paper on channel B -- symbols
 	lea.l	pattern,a0
 	jsr	clear_text1
-frame:
+.frame:
 	; plot graph paper on channel B -- colors
 	lea.l	pattern+4*4,a0
 	jsr	clear_texa1
@@ -42,7 +42,7 @@ frame:
 	move.w	angle,d5
 	moveq	#fract,d6 ; 68000 shift cannot do imm > 8
 	moveq	#0,d7     ; 68000 addx cannot do imm
-vert:
+.vert:
 	move.w	(a0)+,d3 ; v_in.x
 	move.w	(a0)+,d4 ; v_in.y
 
@@ -83,13 +83,13 @@ vert:
 	move.w	d2,(a1)+ ; v_out.y
 
 	cmpa.l	a2,a0
-	bcs	vert
+	bcs	.vert
 
 	; scan-convert the scr-space tri edges
 	lea	tri_scr_0,a2
 	lea	tri_end,a3
 	movea.l	#ea_texa1,a6
-tri:
+.tri:
 	move.w	tri_p0+r2_x(a2),d0
 	move.w	tri_p0+r2_y(a2),d1
 	move.w	tri_p1+r2_x(a2),d2
@@ -113,7 +113,7 @@ tri:
 
 	adda.l	#tri_size,a2
 	cmpa.l	a3,a2
-	bne	tri
+	bne	.tri
 
 	addi.w	#1,angle
 	move.w	frame_i,d0
@@ -127,69 +127,13 @@ tri:
 	jsr	spin
 	endif
 
-	bra	frame
+	bra	.frame
 
 	; some day
 	moveq	#0,d0 ; syscall_exit
 	trap	#15
 
-; produce ascii from word
-; d0.w: word to print
-; a0: output address
-; clobbers: d1, a1
-print_u16:
-	lea	4(a0),a1
-nibble:
-	rol.w	#4,d0
-	move.b	d0,d1
-	andi.b	#$f,d1
-	addi.b	#'0',d1
-	cmpi.b	#'0'+10,d1
-	bcs	digit_ready
-	addi.b	#'a'-'9'-1,d1
-digit_ready:
-	move.b	d1,(a0)+
-	cmpa.l	a1,a0
-	bcs	nibble
-	rts
-
-	ifd do_wait
-; spinloop
-; d0: number of cycles
-spin:
-	subi.l	#1,d0
-	bne	spin
-	rts
-
-	endif
-
-; clear text channel B
-; a0: pattern ptr
-; clobbers d0-d3, a1
-clear_text1:
-	movem.l	(a0),d0-d3
-	movea.l	#ea_text1,a0
-	lea	tx1_w*tx1_h(a0),a1
-Lloop:
-	movem.l	d0-d3,(a0)
-	adda.w	#4*4,a0
-	cmpa.l	a1,a0
-	blt	Lloop
-	rts
-
-; clear attr channel B
-; a0: pattern ptr
-; clobbers d0-d3, a1
-clear_texa1:
-	movem.l (a0),d0-d3
-	movea.l	#ea_texa1,a0
-	lea	tx1_w*tx1_h(a0),a1
-LLloop:
-	movem.l	d0-d3,(a0)
-	adda.w	#4*4,a0
-	cmpa.l	a1,a0
-	blt	LLloop
-	rts
+	include "util.inc"
 
 ; struct r2
 	clrso
@@ -204,6 +148,7 @@ tri_p1	so.w 2 ; r2
 tri_p2	so.w 2 ; r2
 tri_size = __SO
 
+	inline
 ; multiply by sine
 ; d0.w: multiplicand
 ; d1.w: angle ticks -- [0, 2pi) -> [0, 256)
@@ -212,23 +157,25 @@ tri_size = __SO
 mul_sin:
 	and.w	#$ff,d1
 	cmpi.b	#$80,d1
-	bcs	sign_done
+	bcs	.sign_done
 	neg.w	d0
 	subi.b	#$80,d1
-sign_done:
+.sign_done:
 	cmpi.b	#$40,d1
-	bne	not_maximum
+	bne	.not_maximum
 	swap	d0
 	move.w	#0,d0
 	asr.l	#1,d0
 	rts
-not_maximum:
-	bcs	symmetry_done
+.not_maximum:
+	bcs	.symmetry_done
 	subi.b	#$80,d1
 	neg.b	d1
-symmetry_done:
+.symmetry_done:
 	muls.w	sinLUT(d1.w*2),d0
 	rts
+
+	einline
 
 ; multiply by cosine
 ; d0.w: multiplicand
@@ -239,6 +186,7 @@ mul_cos:
 	addi.w	#$40,d1
 	bra	mul_sin
 
+	inline
 ; draw a line in tx1-sized fb; line must be longer than a single dot
 ; d0.w: x0
 ; d1.w: y0
@@ -256,85 +204,84 @@ line:
 	moveq	#1,d6
 	move.w	d2,d4
 	sub.w	d0,d4 ; dx
-	bge	dx_done
+	bge	.dx_done
 	neg.w	d4
 	neg.w	d6
-dx_done:
-
+.dx_done:
 	moveq	#1,d7
 	movea.w	#tx1_w,a1
 	move.w	d3,d5
 	sub.w	d1,d5 ; dy
-	bge	dy_done
+	bge	.dy_done
 	neg.w	d5
 	neg.w	d7
 	movea.w	#-tx1_w,a1
-dy_done:
-
+.dy_done:
 	cmp.w	d4,d5
-	bge	high_slope
+	bge	.high_slope
 
 	; low slope: iterate along x
 	add.w	d5,d5 ; 2 dy
 	move.w	d5,d3
 	sub.w	d4,d3 ; 2 dy - dx
 	add.w	d4,d4 ; 2 dx
-loop_x:
+.loop_x:
 	ifd do_clip
 	tst.w	d0
-	blt	advance_x
+	blt	.advance_x
 	cmp.w	#tx1_w,d0
-	bge	advance_x
+	bge	.advance_x
 	tst.w	d1
-	blt	advance_x
+	blt	.advance_x
 	cmp.w	#tx1_h,d1
-	bge	advance_x
+	bge	.advance_x
 	endif
 	move.b	#$41,(a0)
-advance_x:
+.advance_x:
 	adda.w	d6,a0
 	add.w	d6,d0
 	tst.w	d3
-	ble	x_done
+	ble	.x_done
 	adda.w	a1,a0
 	sub.w	d4,d3
 	add.w	d7,d1
-x_done:
+.x_done:
 	add.w	d5,d3
 	cmp.w	d0,d2
-	bne	loop_x
+	bne	.loop_x
 	rts
-high_slope: ; iterate along y
+.high_slope: ; iterate along y
 	add.w	d4,d4 ; 2 dx
 	move.w	d4,d2
 	sub.w	d5,d2 ; 2 dx - dy
 	add.w	d5,d5 ; 2 dy
-loop_y:
+.loop_y:
 	ifd do_clip
 	tst.w	d0
-	blt	advance_y
+	blt	.advance_y
 	cmp.w	#tx1_w,d0
-	bge	advance_y
+	bge	.advance_y
 	tst.w	d1
-	blt	advance_y
+	blt	.advance_y
 	cmp.w	#tx1_h,d1
-	bge	advance_y
+	bge	.advance_y
 	endif
 	move.b	#$41,(a0)
-advance_y:
+.advance_y:
 	adda.w	a1,a0
 	add.w	d7,d1
 	tst.w	d2
-	ble	y_done
+	ble	.y_done
 	adda.w	d6,a0
 	sub.w	d5,d2
 	add.w	d6,d0
-y_done:
+.y_done:
 	add.w	d4,d2
 	cmp.w	d1,d3
-	bne	loop_y
+	bne	.loop_y
 	rts
 
+	einline
 angle:
 	dc.w	0
 frame_i:
