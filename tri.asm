@@ -244,8 +244,6 @@ line:
 	neg.w	d4
 	neg.w	d6
 .dx_done:
-	addi.w	#1,d4
-
 	moveq	#1,d7
 	movea.w	#tx0_w,a1
 	move.w	d3,d5
@@ -255,13 +253,14 @@ line:
 	neg.w	d7
 	movea.w	#-tx0_w,a1
 .dy_done:
-	addi.w	#1,d5
-
 	cmp.w	d4,d5
 	bge	.high_slope
 
 	; low slope: iterate along x
-	moveq	#0,d3
+	add.w	d5,d5 ; 2 dy
+	move.w	d5,d3
+	sub.w	d4,d3 ; 2 dy - dx
+	add.w	d4,d4 ; 2 dx
 .loop_x:
 	ifd do_clip
 	tst.w	d0
@@ -277,18 +276,21 @@ line:
 .advance_x:
 	adda.w	d6,a0
 	add.w	d6,d0
-	add.w	d5,d3
-	cmp.w	d4,d3
-	bcs	.x_done
+	tst.w	d3
+	ble	.x_done
 	adda.w	a1,a0
 	sub.w	d4,d3
 	add.w	d7,d1
 .x_done:
+	add.w	d5,d3
 	cmp.w	d0,d2
 	bne	.loop_x
 	rts
 .high_slope: ; iterate along y
-	moveq	#0,d2
+	add.w	d4,d4 ; 2 dx
+	move.w	d4,d2
+	sub.w	d5,d2 ; 2 dx - dy
+	add.w	d5,d5 ; 2 dy
 .loop_y:
 	ifd do_clip
 	tst.w	d0
@@ -304,13 +306,13 @@ line:
 .advance_y:
 	adda.w	a1,a0
 	add.w	d7,d1
-	add.w	d4,d2
-	cmp.w	d5,d2
-	bcs	.y_done
+	tst.w	d2
+	ble	.y_done
 	adda.w	d6,a0
 	sub.w	d5,d2
 	add.w	d6,d0
 .y_done:
+	add.w	d4,d2
 	cmp.w	d1,d3
 	bne	.loop_y
 	rts
