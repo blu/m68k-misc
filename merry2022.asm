@@ -6,12 +6,18 @@ tx0_h	equ 75
 tx1_w	equ 80
 tx1_h	equ 60
 
-quelen	equ 4
+quelen	equ 8
 questep	equ 4
 
 fract	equ 15
 
-spins	equ $57e0
+spins	equ $8000
+
+	macro	queue_shift
+	rept	quelen-1
+	move.w	angle+(quelen-2-REPTN)*2,angle+(quelen-1-REPTN)*2
+	endr
+	endm
 
 	; we want absolute addresses -- with moto/vasm that means
 	; just use org; don't use sections as they cause resetting
@@ -37,6 +43,15 @@ spins	equ $57e0
 	and.b	#reset_cursor_enable,d2
 	move.l	d2,hw_vicky_cursor(a0)
 
+	; set bg clut: $ggbb, $aarr
+	lea	clut,a0
+	lea	angle,a2
+	movea.l	#ea_palb0+1*4,a1
+.clut:
+	move.w	(a0)+,(a1)+
+	cmpa.l	a2,a0
+	bcs	.clut
+
 	; clear channel A -- symbols
 	lea.l	pattern,a0
 	jsr	clear_text0
@@ -51,7 +66,10 @@ spins	equ $57e0
 	lea	cinq_obj_0,a0
 	lea	cinq_scr_0,a1
 	movea.l	a1,a2
-	move.w	angle,d5
+	move.b	queue,d5
+	subi.b	#1,d5
+	ext.w	d5
+	move.w	angle(d5.w*2),d5
 	moveq	#fract,d6 ; 68000 shift cannot do imm > 8
 	moveq	#0,d7     ; 68000 addx cannot do imm
 .vert:
@@ -98,8 +116,7 @@ spins	equ $57e0
 	bcs	.vert
 
 	; scan-convert the scr-space cinq edges
-	lea	cinq_scr_0,a2
-	lea	cinq_end,a3
+	movea.l	a1,a3
 	movea.l	#ea_texa0,a6
 .cinq:
 	move.w	cinq_p0+r2_x(a2),d0
@@ -141,7 +158,6 @@ spins	equ $57e0
 	cmpa.l	a3,a2
 	bne	.cinq
 
-	addi.w	#questep,angle
 	subi.b	#1,queue
 	bne	.que
 
@@ -165,12 +181,23 @@ spins	equ $57e0
 	lea	cinq_end+128,a1
 	jsr	pixmap
 .msg_done:
-	subi.w	#quelen*questep-1,angle
+	queue_shift
+
 	move.w	frame_i,d0
 	addi.w	#1,d0
 	move.w	d0,frame_i
+
 	movea.l	#ea_text0+tx0_w-4,a0
 	jsr	print_u16
+
+	move.w	d0,d1
+	move.w	#questep,d0
+	jsr	mul_sin
+	moveq	#fract,d6
+	moveq	#0,d7
+	asr.l	d6,d0
+	addx.w	d7,d0
+	add.w	d0,angle
 
 	move.l	#spins,d0
 	jsr	spin
@@ -361,13 +388,22 @@ pixmap:
 
 	einline
 	include "util.inc"
-angle:
-	dc.w	0
-frame_i:
-	dc.w	0
 pattern:
 	dcb.l	4, '    '
 	dcb.l	4, $70707070
+clut:
+	dc.w	$44DC, $FFDC
+	dc.w	$25AE, $FF9A
+	dc.w	$1DA6, $FF92
+	dc.w	$159E, $FF8A
+	dc.w	$058E, $FF7A
+	dc.w	$006E, $FF5A
+	dc.w	$004E, $FF3A
+	dc.w	$004E, $FF1A
+angle:
+	dcb.w	quelen, -32
+frame_i:
+	dc.w	0
 queue:
 	ds.b	1
 

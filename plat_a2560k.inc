@@ -4,8 +4,12 @@ ea_stack equ $080000
 ea_vicky equ $c40000
 ea_text0 equ $c60000
 ea_texa0 equ $c68000
+ea_palf0 equ $c6c400
+ea_palb0 equ $c6c440
 ea_text1 equ $ca0000
 ea_texa1 equ $ca8000
+ea_palf1 equ $cac400
+ea_palb1 equ $cac440
 
 ; some hw regs
 hw_vicky_master equ $0000
