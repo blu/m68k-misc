@@ -1,10 +1,4 @@
-ea_user  equ $020000
-ea_stack equ $080000
-ea_vicky equ $c40000
-ea_text0 equ $c60000
-ea_texa0 equ $c68000
-ea_text1 equ $ca0000
-ea_texa1 equ $ca8000
+	include "plat_a2560k.inc"
 
 tx0_w	equ 72
 tx0_h	equ 56
@@ -71,6 +65,7 @@ pattern:
 	dc.l	'0123', '4567', '89ab', 'cdef'
 	dcb.l	4, $42434243
 
+	inline
 ; memset a buffer to a given value; 4B inner loop; only aligned writes
 ; a0: target
 ; d0.l: content; value splatted to long word
@@ -81,40 +76,43 @@ memset4:
 	move.l	a0,d2
 
 	btst	#0,d2
-	beq	L4head0
+	beq	.head0
 	move.b	d0,(a0)+
 	addi.l	#1,d2
 	subi.l	#1,d1
-L4head0:
+.head0:
 	cmp.l	#2,d1
-	bcs	L4tail0
+	bcs	.tail0
 
 	btst	#1,d2
-	beq	L4head1
+	beq	.head1
 	move.w	d0,(a0)+
 ;	addi.l	#2,d2 ; for higher alignmen versions
 	subi.l	#2,d1
-L4head1:
+.head1:
 	cmp.l	#4,d1
-	bcs	L4tail1
+	bcs	.tail1
 
 	move.l	d1,d2
 	lsr.l	#2,d2
-L4loop:
+.loop:
 	move.l	#$40404040,(a0)+ ; imm just for the unit test; correct src: d0
 	subi.l	#1,d2
-	bne	L4loop
-L4tail1:
+	bne	.loop
+.tail1:
 	btst	#1,d1
-	beq	L4tail0
+	beq	.tail0
 	move.w	d0,(a0)+
-L4tail0:
+.tail0:
 	btst	#0,d1
-	beq	L4done
+	beq	.done
 	move.b	d0,(a0)+
-L4done:
+.done:
 	rts
 
+	einline
+
+	inline
 ; memset a buffer to a given value; 8B inner loop; only aligned writes
 ; a0: target
 ; d0.l: content; value splatted to long word
@@ -125,54 +123,57 @@ memset8:
 	move.l	a0,d2
 
 	btst	#0,d2
-	beq	L8head0
+	beq	.head0
 	move.b	d0,(a0)+
 	addi.l	#1,d2
 	subi.l	#1,d1
-L8head0:
+.head0:
 	cmp.l	#2,d1
-	bcs	L8tail0
+	bcs	.tail0
 
 	btst	#1,d2
-	beq	L8head1
+	beq	.head1
 	move.w	d0,(a0)+
 	addi.l	#2,d2
 	subi.l	#2,d1
-L8head1:
+.head1:
 	cmp.l	#4,d1
-	bcs	L8tail1
+	bcs	.tail1
 
 	btst	#2,d2
-	beq	L8head2
+	beq	.head2
 	move.l	d0,(a0)+
 ;	addi.l	#4,d2 ; for higher alignmen versions
 	subi.l	#4,d1
-L8head2:
+.head2:
 	cmp.l	#8,d1
-	bcs	L8tail2
+	bcs	.tail2
 
 	move.l	d1,d2
 	lsr.l	#3,d2
-L8loop:
+.loop:
 	move.l	#$40404040,(a0)+ ; imm just for the unit test; correct src: d0
 	move.l	#$3f3f3f3f,(a0)+ ; ditto
 	subi.l	#1,d2
-	bne	L8loop
-L8tail2:
+	bne	.loop
+.tail2:
 	btst	#2,d1
-	beq	L8tail1
+	beq	.tail1
 	move.l	d0,(a0)+
-L8tail1:
+.tail1:
 	btst	#1,d1
-	beq	L8tail0
+	beq	.tail0
 	move.w	d0,(a0)+
-L8tail0:
+.tail0:
 	btst	#0,d1
-	beq	L8done
+	beq	.done
 	move.b	d0,(a0)+
-L8done:
+.done:
 	rts
 
+	einline
+
+	inline
 ; memset a buffer to a given value; 16B inner loop; only aligned writes
 ; a0: target
 ; d0.l: content; value splatted to long word
@@ -183,70 +184,72 @@ memset16:
 	move.l	a0,d2
 
 	btst	#0,d2
-	beq	L16head0
+	beq	.head0
 	move.b	d0,(a0)+
 	addi.l	#1,d2
 	subi.l	#1,d1
-L16head0:
+.head0:
 	cmp.l	#2,d1
-	bcs	L16tail0
+	bcs	.tail0
 
 	btst	#1,d2
-	beq	L16head1
+	beq	.head1
 	move.w	d0,(a0)+
 	addi.l	#2,d2
 	subi.l	#2,d1
-L16head1:
+.head1:
 	cmp.l	#4,d1
-	bcs	L16tail1
+	bcs	.tail1
 
 	btst	#2,d2
-	beq	L16head2
+	beq	.head2
 	move.l	d0,(a0)+
 	addi.l	#4,d2
 	subi.l	#4,d1
-L16head2:
+.head2:
 	cmp.l	#8,d1
-	bcs	L16tail2
+	bcs	.tail2
 
 	btst	#3,d2
-	beq	L16head3
+	beq	.head3
 	move.l	d0,(a0)+
 	move.l	d0,(a0)+
 ;	addi.l	#8,d2 ; for higher alignmen versions
 	subi.l	#8,d1
-L16head3:
+.head3:
 	cmp.l	#16,d1
-	bcs	L16tail3
+	bcs	.tail3
 
 	move.l	d1,d2
 	lsr.l	#4,d2
-L16loop:
+.loop:
 	move.l	#$40404040,(a0)+ ; imm just for the unit test; correct src: d0
 	move.l	#$3f3f3f3f,(a0)+ ; ditto
 	move.l	#$3e3e3e3e,(a0)+ ; ditto
 	move.l	#$3d3d3d3d,(a0)+ ; ditto
 	subi.l	#1,d2
-	bne	L16loop
-L16tail3:
+	bne	.loop
+.tail3:
 	btst	#3,d1
-	beq	L16tail2
+	beq	.tail2
 	move.l	d0,(a0)+
 	move.l	d0,(a0)+
-L16tail2:
+.tail2:
 	btst	#2,d1
-	beq	L16tail1
+	beq	.tail1
 	move.l	d0,(a0)+
-L16tail1:
+.tail1:
 	btst	#1,d1
-	beq	L16tail0
+	beq	.tail0
 	move.w	d0,(a0)+
-L16tail0:
+.tail0:
 	btst	#0,d1
-	beq	L16done
+	beq	.done
 	move.b	d0,(a0)+
-L16done:
+.done:
 	rts
+
+	einline
 
 ; plot one memset test frame on channel B
 ; a3: where to start the plot
@@ -287,63 +290,6 @@ param:
 
 	rts
 
-; clear text channel B
-; a0: pattern ptr
-; clobbers d0-d3, a1
-clear_text1:
-	movem.l	(a0),d0-d3
-	movea.l	#ea_text1,a0
-	lea	tx1_w*tx1_h(a0),a1
-Lloop:
-	movem.l	d0-d3,(a0)
-	adda.w	#4*4,a0
-	cmpa.l	a1,a0
-	blt	Lloop
-	rts
-
-; clear attr channel B
-; a0: pattern ptr
-; clobbers d0-d3, a1
-clear_texa1:
-	movem.l (a0),d0-d3
-	movea.l	#ea_texa1,a0
-	lea	tx1_w*tx1_h(a0),a1
-LLloop:
-	movem.l	d0-d3,(a0)
-	adda.w	#4*4,a0
-	cmpa.l	a1,a0
-	blt	LLloop
-	rts
-
-; produce ascii from word
-; d0.w: word to print
-; a0: output address
-; clobbers: d1, a1
-print_u16:
-	lea	4(a0),a1
-nibble:
-	rol.w	#4,d0
-	move.b	d0,d1
-	andi.b	#$f,d1
-	addi.b	#'0',d1
-	cmpi.b	#'0'+10,d1
-	bcs	digit_ready
-	addi.b	#'a'-'9'-1,d1
-digit_ready:
-	move.b	d1,(a0)+
-	cmpa.l	a1,a0
-	bcs	nibble
-	rts
-
-	ifd do_wait
-; spinloop
-; d0: number of cycles
-spin:
-	subi.l	#1,d0
-	bne	spin
-	rts
-
-	endif
-
+	include "util.inc"
 frame_i:
 	dc.w	0
