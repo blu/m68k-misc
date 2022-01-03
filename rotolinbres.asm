@@ -227,14 +227,10 @@ line:
 	add.w	d4,d4 ; 2 dx
 .loop_x:
 	ifd do_clip
-	tst.w	d0
-	blt	.advance_x
 	cmp.w	#tx1_w,d0
-	bge	.advance_x
-	tst.w	d1
-	blt	.advance_x
+	bcc	.advance_x
 	cmp.w	#tx1_h,d1
-	bge	.advance_x
+	bcc	.advance_x
 	endif
 	move.b	#$41,(a0)
 .advance_x:
@@ -257,14 +253,10 @@ line:
 	add.w	d5,d5 ; 2 dy
 .loop_y:
 	ifd do_clip
-	tst.w	d0
-	blt	.advance_y
 	cmp.w	#tx1_w,d0
-	bge	.advance_y
-	tst.w	d1
-	blt	.advance_y
+	bcc	.advance_y
 	cmp.w	#tx1_h,d1
-	bge	.advance_y
+	bcc	.advance_y
 	endif
 	move.b	#$41,(a0)
 .advance_y:
