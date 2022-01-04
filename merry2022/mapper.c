@@ -7,8 +7,8 @@
 
 int main(int argc, char **argv)
 {
-	if (argc != 2) {
-		fprintf(stderr, "usage: %s filename\n", argv[0]);
+	if (argc != 3) {
+		fprintf(stderr, "usage: %s in_file out_file\n", argv[0]);
 		return -1;
 	}
 
@@ -36,7 +36,7 @@ int main(int argc, char **argv)
 	char *p = (char *)mmap(NULL, sb.st_size, PROT_READ, MAP_PRIVATE, fd, 0);
 	close(fd);
 
-	if (!p) {
+	if (p == MAP_FAILED) {
 		fprintf(stderr, "error: cannon mmap file %s\n", argv[1]);
 		return -1;
 	}
@@ -56,10 +56,10 @@ int main(int argc, char **argv)
 
 	munmap(p, sb.st_size);
 
-	const int fe = open("mapped.bin", O_CREAT | O_WRONLY, S_IRUSR | S_IRGRP | S_IROTH);
+	const int fe = open(argv[2], O_CREAT | O_WRONLY, S_IRUSR | S_IRGRP | S_IROTH);
 
 	if (fe < 0) {
-		fprintf(stderr, "error: cannot open file 'mapped.bin' for writing\n");
+		fprintf(stderr, "error: cannot open file %s for writing\n", argv[2]);
 		return -1;
 	}
 
@@ -67,7 +67,7 @@ int main(int argc, char **argv)
 	close(fe);
 
 	if (sizeof(map) != written) {
-		fprintf(stderr, "error: cannot write file 'mapped.bin'\n");
+		fprintf(stderr, "error: cannot write file %s\n", argv[2]);
 		return -1;
 	}
 
