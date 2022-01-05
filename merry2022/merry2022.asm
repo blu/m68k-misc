@@ -1,3 +1,13 @@
+; control symbols:
+; target_cpu (numerical): select target cpu
+;	0: 68000
+;	1: 68010
+;	2: 68020
+; 	3: 68030
+;	4: 68040
+;	6: 68060
+; do_clip (define): enforce clipping in primitives
+
 	include "plat_a2560k.inc"
 
 tx0_w	equ 100
@@ -12,12 +22,6 @@ questep	equ 4
 fract	equ 15
 
 spins	equ $8000
-
-	macro	queue_shift
-	rept	quelen-1
-	move.w	angle+(quelen-2-REPTN)*2,angle+(quelen-1-REPTN)*2
-	endr
-	endm
 
 	; we want absolute addresses -- with moto/vasm that means
 	; just use org; don't use sections as they cause resetting
@@ -55,6 +59,11 @@ spins	equ $8000
 	; clear channel A -- symbols
 	lea.l	pattern,a0
 	jsr	clear_text0
+
+	; frame constants
+	movea.l	#ea_text0,a4
+	movea.l	#ea_texa0,a5
+	lea	sinLUT,a6
 .frame:
 	; clear channel A -- colors
 	lea.l	pattern+4*4,a0
@@ -69,7 +78,16 @@ spins	equ $8000
 	move.b	queue,d5
 	subi.b	#1,d5
 	ext.w	d5
+
+	if target_cpu >= 2
 	move.w	angle(d5.w*2),d5
+
+	else
+	add.w	d5,d5
+	lea	angle,a3
+	move.w	(a3,d5.w),d5
+
+	endif
 	moveq	#fract,d6 ; 68000 shift cannot do imm > 8
 	moveq	#0,d7     ; 68000 addx cannot do imm
 .vert:
@@ -117,41 +135,40 @@ spins	equ $8000
 
 	; scan-convert the scr-space cinq edges
 	movea.l	a1,a3
-	movea.l	#ea_texa0,a6
 .cinq:
 	move.w	cinq_p0+r2_x(a2),d0
 	move.w	cinq_p0+r2_y(a2),d1
 	move.w	cinq_p1+r2_x(a2),d2
 	move.w	cinq_p1+r2_y(a2),d3
-	movea.l	a6,a0
+	movea.l	a5,a0
 	jsr	line
 
 	move.w	cinq_p1+r2_x(a2),d0
 	move.w	cinq_p1+r2_y(a2),d1
 	move.w	cinq_p2+r2_x(a2),d2
 	move.w	cinq_p2+r2_y(a2),d3
-	movea.l	a6,a0
+	movea.l	a5,a0
 	jsr	line
 
 	move.w	cinq_p2+r2_x(a2),d0
 	move.w	cinq_p2+r2_y(a2),d1
 	move.w	cinq_p3+r2_x(a2),d2
 	move.w	cinq_p3+r2_y(a2),d3
-	movea.l	a6,a0
+	movea.l	a5,a0
 	jsr	line
 
 	move.w	cinq_p3+r2_x(a2),d0
 	move.w	cinq_p3+r2_y(a2),d1
 	move.w	cinq_p4+r2_x(a2),d2
 	move.w	cinq_p4+r2_y(a2),d3
-	movea.l	a6,a0
+	movea.l	a5,a0
 	jsr	line
 
 	move.w	cinq_p4+r2_x(a2),d0
 	move.w	cinq_p4+r2_y(a2),d1
 	move.w	cinq_p0+r2_x(a2),d2
 	move.w	cinq_p0+r2_y(a2),d3
-	movea.l	a6,a0
+	movea.l	a5,a0
 	jsr	line
 
 	adda.l	#cinq_size,a2
@@ -161,33 +178,31 @@ spins	equ $8000
 	subi.b	#1,queue
 	bne	.que
 
-	lea	tx0_w*(tx0_h-30)+(tx0_w-64)/2(a6),a0
+	lea	tx0_w*(tx0_h-30)+(tx0_w-64)/2(a5),a0
 	lea	cinq_end,a1
 	jsr	pixmap
 
 	btst.b	#7,frame_i+1
 	bne	.msg_alt
 
-	lea	tx0_w*(tx0_h-20)+(tx0_w-64)/2(a6),a0
+	lea	tx0_w*(tx0_h-20)+(tx0_w-64)/2(a5),a0
 	lea	cinq_end+192,a1
 	jsr	pixmap
 	bra	.msg_done
 .msg_alt:
-	lea	tx0_w*(tx0_h-20)+(tx0_w-64)/2(a6),a0
+	lea	tx0_w*(tx0_h-20)+(tx0_w-64)/2(a5),a0
 	lea	cinq_end+64,a1
 	jsr	pixmap
 
-	lea	tx0_w*(tx0_h-10)+(tx0_w-64)/2(a6),a0
+	lea	tx0_w*(tx0_h-10)+(tx0_w-64)/2(a5),a0
 	lea	cinq_end+128,a1
 	jsr	pixmap
 .msg_done:
-	queue_shift
-
 	move.w	frame_i,d0
 	addi.w	#1,d0
 	move.w	d0,frame_i
 
-	movea.l	#ea_text0+tx0_w-4,a0
+	lea	tx0_w-4(a4),a0
 	jsr	print_u16
 
 	move.w	d0,d1
@@ -197,7 +212,12 @@ spins	equ $8000
 	moveq	#0,d7
 	asr.l	d6,d0
 	addx.w	d7,d0
-	add.w	d0,angle
+
+	lea	angle,a3
+	rept	quelen-1
+	move.w	(quelen-2-REPTN)*2(a3),(quelen-1-REPTN)*2(a3)
+	endr
+	add.w	d0,(a3)
 
 	move.l	#spins,d0
 	jsr	spin
@@ -227,8 +247,8 @@ cinq_size = __SO
 ; multiply by sine
 ; d0.w: multiplicand
 ; d1.w: angle ticks -- [0, 2pi) -> [0, 256)
+; a6: sinLUT ptr
 ; returns: d0.l: sine product as fx16.15 (d0[31] replicates sign)
-	mc68020
 mul_sin:
 	and.w	#$ff,d1
 	cmpi.b	#$80,d1
@@ -247,7 +267,14 @@ mul_sin:
 	subi.b	#$80,d1
 	neg.b	d1
 .symmetry_done:
-	muls.w	sinLUT(d1.w*2),d0
+	if target_cpu >= 2
+	muls.w	(a6,d1.w*2),d0
+
+	else
+	add.w	d1,d1
+	muls.w	(a6,d1.w),d0
+
+	endif
 	rts
 
 	einline
@@ -255,8 +282,8 @@ mul_sin:
 ; multiply by cosine
 ; d0.w: multiplicand
 ; d1.w: angle ticks -- [0, 2pi) -> [0, 256)
+; a6: sinLUT ptr
 ; returns; d0.l: cosine product as fx16.15 (d0[31] replicates sign)
-	mc68000
 mul_cos:
 	addi.w	#$40,d1
 	bra	mul_sin
