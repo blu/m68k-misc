@@ -382,8 +382,7 @@ line:
 ; map comprised of 8 pixel rows and 64 pixel columns
 ; a0: output ptr
 ; a1: msg ptr
-; clobbers: d0-d1
-	mc68020
+; clobbers: d0-d2
 pixmap:
 	lea	64(a1),a2
 .row:
@@ -396,9 +395,11 @@ pixmap:
 	move.b	#$4e,(a0,d0.w)
 .pixel_done:
 	addi.w	#1,d0
-	bftst	d0{29:3}
+	move.l	d0,d2
+	and.w	#$7,d2
 	bne	.bit
-	bftst	d0{26:6}
+	move.l	d0,d2
+	and.w	#$38,d2
 	bne	.byte
 	adda.w	#tx0_w,a0
 	cmpa.l	a2,a1
