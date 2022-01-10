@@ -161,11 +161,9 @@ trig15:
 	inline
 trig14:
 	; compute scr coords for obj-space tris
-	lea	tri_obj_0,a0
-	lea	tri_scr_0,a1
+	lea	tri_obj_0,a4
+	lea	tri_scr_0,a5
 	lea	sinLUT14,a6
-	movea.l	a1,a2
-	movea.l	#ea_texa1,a5
 
 	moveq	#14,d6 ; 68000 shift cannot do imm > 8
 	moveq	#0,d7  ; 68000 addx cannot do imm
@@ -176,45 +174,56 @@ trig14:
 	move.w	d0,d1
 	move.w	d4,d0
 	jsr	lut_sin14
+
+	moveq	#1,d4
+	asl.w	d6,d4
+
+	; prepare rotation around z-axis
+	lea	roto,a0
+	move.w	d1,(a0)+
+	move.w	d0,(a0)+
+	move.w	d7,(a0)+
+	neg.w	d0
+	move.w	d0,(a0)+
+	move.w	d1,(a0)+
+	move.w	d7,(a0)+
+
+	move.w	d7,(a0)+
+	move.w	d7,(a0)+
+	move.w	d4,(a0)+
+	lea	roto,a0
 .vert:
-	move.w	r3_x(a0),d2 ; v_in.x
-	move.w	r3_y(a0),d3 ; v_in.y
-	adda.w	#r3_size,a0
+	move.w	(a4)+,d0 ; v_in.x
+	move.w	(a4)+,d1 ; v_in.y
+	move.w	(a4)+,d2 ; v_in.z
 
-	; transform vertex x-coord: cos * x - sin * y
-	move.w	d2,d4
-	muls.w	d1,d4
-	move.w	d3,d5
-	muls.w	d0,d5
+	jsr	mul_vec3_mat
+	move.l	a1,d0
+	move.l	a2,d1
+	move.l	a3,d2
 
-	sub.l	d5,d4
 	; fx16.14 -> int16
-	asr.l	d6,d4
-	addx.w	d7,d4
+	asr.l	d6,d0
+	addx.w	d7,d0
+	asr.l	d6,d1
+	addx.w	d7,d1
+	asr.l	d6,d2
+	addx.w	d7,d2
 
-	addi.w	#tx1_w/2+2,d4
-	move.w	d4,r3_x(a1) ; v_out.x
+	addi.w	#tx1_w/2+2,d0
+	addi.w	#tx1_h/2-1,d1
 
-	; transform vertex y-coord: sin * x + cos * y
-	move.w	d2,d4
-	muls.w	d0,d4
-	move.w	d3,d5
-	muls.w	d1,d5
+	move.w	d0,(a5)+ ; v_out.x
+	move.w	d1,(a5)+ ; v_out.y
+	move.w	d2,(a5)+ ; v_out.z
 
-	add.l	d5,d4
-	; fx16.14 -> int16
-	asr.l	d6,d4
-	addx.w	d7,d4
-
-	addi.w	#tx1_h/2-1,d4
-	move.w	d4,r3_y(a1) ; v_out.y
-
-	adda.w	#r3_size,a1
-	cmpa.l	a2,a0
+	lea	tri_scr_0,a2
+	cmpa.l	a2,a4
 	bcs	.vert
 
 	; scan-convert the scr-space tri edges
-	movea.l	a1,a3
+	movea.l	a5,a3
+	movea.l	#ea_texa1,a5
 	move.b	#$44,color
 .tri:
 	move.w	tri_p0+r3_x(a2),d0
@@ -571,15 +580,17 @@ line:
 	rts
 
 	einline
-angle:
-	dc.w	0
-frame_i:
-	dc.w	0
-color:
-	ds.b	2
-pattern:
+pattern: ; fb clear pattern
 	dc.l	'0123', '4567', '89ab', 'cdef'
 	dcb.l	4, $42434243
+angle:	; current angle
+	dc.w	0
+roto:	; rotation matrix
+	ds.w	9
+frame_i: ; frame index
+	dc.w	0
+color:	; primitive color
+	ds.b	1
 
 	align 4
 sinLUT15:
