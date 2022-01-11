@@ -191,12 +191,12 @@ trig14:
 	move.w	d7,(a0)+
 	move.w	d7,(a0)+
 	move.w	d4,(a0)+
-	lea	roto,a0
 .vert:
 	move.w	(a4)+,d0 ; v_in.x
 	move.w	(a4)+,d1 ; v_in.y
 	move.w	(a4)+,d2 ; v_in.z
 
+	lea	-18(a0),a0
 	jsr	mul_vec3_mat
 	move.l	a1,d0
 	move.l	a2,d1
@@ -301,8 +301,6 @@ mul_vec3_mat:
 	adda.l	d3,a1
 	adda.l	d4,a2
 	adda.l	d5,a3
-
-	suba.w	#18,a0
 	rts
 
 	einline
@@ -357,8 +355,6 @@ mul_vec3_mat_tr:
 	adda.l	d3,a1
 	adda.l	d4,a2
 	adda.l	d5,a3
-
-	suba.w	#18,a0
 	rts
 
 	einline
