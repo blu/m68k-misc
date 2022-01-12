@@ -70,6 +70,8 @@ tri_p1	so.w 3 ; r3
 tri_p2	so.w 3 ; r3
 tri_size = __SO
 
+mat_size equ r3_size*3
+
 	inline
 trig15:
 	; compute scr coords for obj-space tris
@@ -161,8 +163,6 @@ trig15:
 	inline
 trig14:
 	; compute scr coords for obj-space tris
-	lea	tri_obj_0,a4
-	lea	tri_scr_0,a5
 	lea	sinLUT14,a6
 
 	moveq	#14,d6 ; 68000 shift cannot do imm > 8
@@ -178,8 +178,22 @@ trig14:
 	moveq	#1,d4
 	asl.w	d6,d4
 
-	; prepare rotation around z-axis
+	; prepare rotation around x-axis
 	lea	roto,a0
+	move.w	d4,(a0)+
+	move.w	d7,(a0)+
+	move.w	d7,(a0)+
+
+	move.w	d7,(a0)+
+	move.w	d1,(a0)+
+	move.w	d0,(a0)+
+	neg.w	d0
+	move.w	d7,(a0)+
+	move.w	d0,(a0)+
+	move.w	d1,(a0)+
+	neg.w	d0
+
+	; prepare rotation around z-axis
 	move.w	d1,(a0)+
 	move.w	d0,(a0)+
 	move.w	d7,(a0)+
@@ -191,12 +205,39 @@ trig14:
 	move.w	d7,(a0)+
 	move.w	d7,(a0)+
 	move.w	d4,(a0)+
+
+	; multiply roto_x by roto_z
+	lea	roto,a4
+	rept	3
+	move.w	r3_x(a4),d0
+	move.w	r3_y(a4),d1
+	move.w	r3_z(a4),d2
+	lea	-mat_size(a0),a0
+	jsr	mul_vec3_mat
+	move.l	a1,d0
+	move.l	a2,d1
+	move.l	a3,d2
+	; fx16.14 -> fx16
+	asr.l	d6,d0
+	addx.w	d7,d0
+	asr.l	d6,d1
+	addx.w	d7,d1
+	asr.l	d6,d2
+	addx.w	d7,d2
+	move.w	d0,(a4)+
+	move.w	d1,(a4)+
+	move.w	d2,(a4)+
+	endr
+
+	movea.l	a4,a0
+	lea	tri_obj_0,a4
+	lea	tri_scr_0,a5
 .vert:
 	move.w	(a4)+,d0 ; v_in.x
 	move.w	(a4)+,d1 ; v_in.y
 	move.w	(a4)+,d2 ; v_in.z
 
-	lea	-18(a0),a0
+	lea	-mat_size(a0),a0
 	jsr	mul_vec3_mat
 	move.l	a1,d0
 	move.l	a2,d1
@@ -489,7 +530,7 @@ lut_cos14:
 	bra	lut_sin14
 
 	inline
-; draw a line in tx1-sized fb; line must be longer than a single dot
+; draw a line in tx1-sized fb; last pixel omitted
 ; d0.w: x0
 ; d1.w: y0
 ; d2.w: x1
@@ -553,6 +594,8 @@ line:
 	move.w	d4,d2
 	sub.w	d5,d2 ; 2 dx - dy
 	add.w	d5,d5 ; 2 dy
+	bne	.loop_y
+	rts
 .loop_y:
 	ifd do_clip
 	cmp.w	#tx1_w,d0
@@ -582,6 +625,7 @@ pattern: ; fb clear pattern
 angle:	; current angle
 	dc.w	0
 roto:	; rotation matrix
+	ds.w	9
 	ds.w	9
 frame_i: ; frame index
 	dc.w	0
