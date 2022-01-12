@@ -257,16 +257,16 @@ mul_sin:
 	subi.b	#$80,d1
 .sign_done:
 	cmpi.b	#$40,d1
+	bcs	.fetch
 	bne	.not_maximum
 	swap	d0
 	move.w	#0,d0
 	asr.l	#1,d0
 	rts
 .not_maximum:
-	bcs	.symmetry_done
 	subi.b	#$80,d1
 	neg.b	d1
-.symmetry_done:
+.fetch:
 	if target_cpu >= 2
 	muls.w	(a6,d1.w*2),d0
 

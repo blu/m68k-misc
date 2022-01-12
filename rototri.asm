@@ -259,21 +259,21 @@ get_coord:
 mul_sin:
 	and.w	#$ff,d1
 	cmpi.b	#$80,d1
-	bcs	sign_done
+	bcs	.sign_done
 	neg.w	d0
 	subi.b	#$80,d1
-sign_done:
+.sign_done:
 	cmpi.b	#$40,d1
-	bne	not_maximum
+	bcs	.fetch
+	bne	.not_maximum
 	swap	d0
 	move.w	#0,d0
 	asr.l	#1,d0
 	rts
-not_maximum:
-	bcs	symmetry_done
+.not_maximum:
 	subi.b	#$80,d1
 	neg.b	d1
-symmetry_done:
+.fetch:
 	muls.w	sinLUT(d1.w*2),d0
 	rts
 
