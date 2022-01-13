@@ -6,6 +6,8 @@ tx0_h	equ 75
 tx1_w	equ 80
 tx1_h	equ 60
 
+spins	equ 0
+
 	; we want absolute addresses -- with moto/vasm that means
 	; just use org; don't use sections as they cause resetting
 	; of the current offset for generation of relocatable code
@@ -37,7 +39,7 @@ tx1_h	equ 60
 	; clear channel A -- colors
 	lea.l	pattern+4*4,a0
 	jsr	clear_texa0
-.again:
+.frame:
 	lea	tri_0,a2
 	lea	tri_end,a3
 	movea.l	#ea_texa0,a6
@@ -121,10 +123,15 @@ tx1_h	equ 60
 	move.w	frame_i,d0
 	addi.w	#1,d0
 	move.w	d0,frame_i
-	movea.l	#ea_text0+tx0_w-4,a0
+	movea.l	#ea_text0,a0
 	jsr	print_u16
 
-	bra	.again
+	ifd do_wait
+	move.l	#spins,d0
+	jsr	spin
+	endif
+
+	bra	.frame
 
 	; some day
 	moveq	#0,d0 ; syscall_exit
@@ -312,24 +319,23 @@ line:
 	einline
 
 	include "util.inc"
-
-frame_i:
-	dc.w	0
 pattern:
 	dcb.l	4, '    '
 	dcb.l	4, $70707070
+frame_i:
+	dc.w	0
 tri_0:
-	dc.w	79,  0
-	dc.w	49, 31
+	dc.w	99,  0
+	dc.w	55, 37
 	dc.w	 0, 33
 
-	dc.w	79,  0
-	dc.w	63, 59
-	dc.w	49, 31
+	dc.w	99,  0
+	dc.w	63, 74
+	dc.w	55, 37
 
-	dc.w	63, 59
+	dc.w	63, 74
 	dc.w	 0, 33
-	dc.w	49, 31
+	dc.w	55, 37
 tri_end:
 	align 4
 pb_0:
