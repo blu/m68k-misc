@@ -7,7 +7,7 @@
 ;	4: 68040
 ;	6: 68060
 ; do_clip (define): enforce clipping in primitives
-; do_wair (define): enforce spinloop at end of frame
+; do_wait (define): enforce spinloop at end of frame
 
 	include "plat_a2560k.inc"
 
@@ -102,11 +102,11 @@ spins	equ $8000
 	cmpa.l	a5,a4
 	bcs	.bvert
 
-	; plot graph paper on channel B -- symbols
+	; clear channel A -- symbols
 	lea.l	pattern,a0
 	jsr	clear_text0
 .frame:
-	; plot graph paper on channel B -- colors
+	; clear channel A -- colors
 	lea.l	pattern+4*4,a0
 	jsr	clear_texa0
 
