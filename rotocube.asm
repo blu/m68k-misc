@@ -389,7 +389,6 @@ mul_vec3_mat_tr:
 ; d6.w: constant 14
 ; a6: sinLUT14 ptr
 ; returns: d0.w: sine as fx2.14
-	mc68020
 lut_sin14:
 	and.w	#$ff,d0
 	cmpi.b	#$80,d0
@@ -406,7 +405,15 @@ lut_sin14:
 	subi.b	#$80,d0
 	neg.b	d0
 .fetch_negative:
+
+	if target_cpu >= 2
 	move.w	(a6,d0.w*2),d0
+
+	else
+	add.w	d0,d0
+	move.w	(a6,d0.w),d0
+
+	endif
 	neg.w	d0
 	rts
 
@@ -421,7 +428,15 @@ lut_sin14:
 	subi.b	#$80,d0
 	neg.b	d0
 .fetch_positive:
+
+	if target_cpu >= 2
 	move.w	(a6,d0.w*2),d0
+
+	else
+	add.w	d0,d0
+	move.w	(a6,d0.w),d0
+
+	endif
 	rts
 
 	einline
@@ -431,7 +446,6 @@ lut_sin14:
 ; d6.w: constant 14
 ; a6: sinLUT14 ptr
 ; returns; d0.w: cosine as fx2.14
-	mc68000
 lut_cos14:
 	addi.w	#$40,d0
 	bra	lut_sin14
