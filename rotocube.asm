@@ -1,13 +1,18 @@
-ea_user  equ $020000
-ea_stack equ $080000
-ea_vicky equ $c40000
-ea_text0 equ $c60000
-ea_texa0 equ $c68000
-ea_text1 equ $ca0000
-ea_texa1 equ $ca8000
+; control symbols:
+; target_cpu (numerical): select target cpu
+;	0: 68000
+;	1: 68010
+;	2: 68020
+; 	3: 68030
+;	4: 68040
+;	6: 68060
+; do_clip (define): enforce clipping in primitives
+; do_wair (define): enforce spinloop at end of frame
 
-tx0_w	equ 72
-tx0_h	equ 56
+	include "plat_a2560k.inc"
+
+tx0_w	equ 100
+tx0_h	equ 75
 
 tx1_w	equ 80
 tx1_h	equ 60
@@ -24,6 +29,19 @@ spins	equ $8000
 	movea.l	#ea_stack,a1
 	move.l	a1,usp
 	andi.w	#$dfff,sr
+
+	; set channel A to 800x600, text 100x75 fb (8x8 char matrix)
+	movea.l	#ea_vicky,a0
+	move.l	hw_vicky_master(a0),d0
+	move.l	hw_vicky_border(a0),d1
+	move.l	hw_vicky_cursor(a0),d2
+	and.w	#$ffff&reset_master_mode,d0
+	or.w	#set_master_mode_800x600,d0
+	move.l	d0,hw_vicky_master(a0)
+	and.b	#reset_border_enable,d1
+	move.l	d1,hw_vicky_border(a0)
+	and.b	#reset_cursor_enable,d2
+	move.l	d2,hw_vicky_cursor(a0)
 
 	; pre-bake non-per-frame transforms to obj-space
 	lea	sinLUT14,a6
@@ -86,11 +104,11 @@ spins	equ $8000
 
 	; plot graph paper on channel B -- symbols
 	lea.l	pattern,a0
-	jsr	clear_text1
+	jsr	clear_text0
 .frame:
 	; plot graph paper on channel B -- colors
 	lea.l	pattern+4*4,a0
-	jsr	clear_texa1
+	jsr	clear_texa0
 
 	; compute scr coords from obj-space coords
 	lea	sinLUT14,a6
@@ -182,8 +200,8 @@ spins	equ $8000
 	asr.l	d6,d2
 	addx.w	d7,d2
 
-	addi.w	#tx1_w/2,d0
-	addi.w	#tx1_h/2,d1
+	addi.w	#tx0_w/2,d0
+	addi.w	#tx0_h/2,d1
 
 	move.w	d0,(a5)+ ; v_out.x
 	move.w	d1,(a5)+ ; v_out.y
@@ -194,7 +212,7 @@ spins	equ $8000
 
 	; scan-convert the scr-space tri edges
 	movea.l	a5,a3
-	movea.l	#ea_texa1,a5
+	movea.l	#ea_texa0,a5
 	move.b	#$40,color
 .tri:
 	addi.b	#1,color
@@ -228,7 +246,7 @@ spins	equ $8000
 	move.w	frame_i,d0
 	addi.w	#1,d0
 	move.w	d0,frame_i
-	movea.l	#ea_text1+tx1_w-4,a0
+	movea.l	#ea_text0+tx0_w-4,a0
 	jsr	print_u16
 
 	ifd do_wait
@@ -419,7 +437,7 @@ lut_cos14:
 	bra	lut_sin14
 
 	inline
-; draw a line in tx1-sized fb; last pixel omitted
+; draw a line in tx0-sized fb; last pixel omitted
 ; d0.w: x0
 ; d1.w: y0
 ; d2.w: x1
@@ -429,7 +447,7 @@ lut_cos14:
 line:
 	; compute x0,y0 addr in fb
 	move.w	d1,d4
-	muls.w	#tx1_w,d4
+	muls.w	#tx0_w,d4
 	adda.l	d4,a0
 	adda.w	d0,a0
 
@@ -441,13 +459,13 @@ line:
 	neg.w	d6
 .dx_done:
 	moveq	#1,d7
-	movea.w	#tx1_w,a1
+	movea.w	#tx0_w,a1
 	move.w	d3,d5
 	sub.w	d1,d5 ; dy
 	bge	.dy_done
 	neg.w	d5
 	neg.w	d7
-	movea.w	#-tx1_w,a1
+	movea.w	#-tx0_w,a1
 .dy_done:
 	cmp.w	d4,d5
 	bge	.high_slope
@@ -459,9 +477,9 @@ line:
 	add.w	d4,d4 ; 2 dx
 .loop_x:
 	ifd do_clip
-	cmp.w	#tx1_w,d0
+	cmp.w	#tx0_w,d0
 	bcc	.advance_x
-	cmp.w	#tx1_h,d1
+	cmp.w	#tx0_h,d1
 	bcc	.advance_x
 	endif
 	move.b	color,(a0)
@@ -487,9 +505,9 @@ line:
 	rts
 .loop_y:
 	ifd do_clip
-	cmp.w	#tx1_w,d0
+	cmp.w	#tx0_w,d0
 	bcc	.advance_y
-	cmp.w	#tx1_h,d1
+	cmp.w	#tx0_h,d1
 	bcc	.advance_y
 	endif
 	move.b	color,(a0)
