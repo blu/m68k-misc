@@ -8,6 +8,7 @@
 ;	6: 68060
 ; do_clip (define): enforce clipping in primitives
 ; do_wait (define): enforce spinloop at end of frame
+; do_clear (define): enforce fb clear at start of frame
 
 	include "plat_a2560k.inc"
 
@@ -106,9 +107,11 @@ spins	equ $8000
 	lea.l	pattern,a0
 	jsr	clear_text0
 .frame:
+	ifd do_clear
 	; clear channel A -- colors
 	lea.l	pattern+4*4,a0
 	jsr	clear_texa0
+	endif
 
 	; compute scr coords from obj-space coords
 	lea	sinLUT14,a6
