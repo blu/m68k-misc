@@ -81,7 +81,7 @@ u32root:
 	cmp.l	#2,d3
 	bcc	.iter
 
-	; the 1st iteration is always an ascend: the new
+	; the 1st iteration is always an ascent: the new
 	; est could be the result, if not then old is
 	move.l	d2,d3
 	mulu.l	d3,d3
@@ -93,7 +93,7 @@ u32root:
 	move.l	d1,d0
 	rts
 
-.iter: ; descent until we get within minimal distance
+.iter: ; descend until we get within minimal distance
 	ifd do_count
 	addq	#1,d7
 	endif
