@@ -214,8 +214,7 @@ spins	equ $8000
 	bcs	.vert
 
 	; scan-convert the scr-space tri edges
-	movea.l	a5,a3
-	movea.l	#ea_texa0,a5
+	movea.l	#ea_texa0,a4
 	move.b	#$40,color
 .tri:
 	addi.b	#1,color
@@ -230,30 +229,44 @@ spins	equ $8000
 	jsr	init_pb
 	ble	.tri_done
 
+	ifd do_fill
 	move.w	tri_p0+r3_x(a6),d0
 	move.w	tri_p0+r3_y(a6),d1
 	move.w	tri_p1+r3_x(a6),d2
 	move.w	tri_p1+r3_y(a6),d3
-	movea.l	a5,a0
+	move.w	tri_p2+r3_x(a6),d4
+	move.w	tri_p2+r3_y(a6),d5
+	lea	pb,a0
+	lea	bbox,a1
+	movea.l	a4,a2
+	jsr	tri
+
+	else
+	move.w	tri_p0+r3_x(a6),d0
+	move.w	tri_p0+r3_y(a6),d1
+	move.w	tri_p1+r3_x(a6),d2
+	move.w	tri_p1+r3_y(a6),d3
+	movea.l	a4,a0
 	jsr	line
 
 	move.w	tri_p1+r3_x(a6),d0
 	move.w	tri_p1+r3_y(a6),d1
 	move.w	tri_p2+r3_x(a6),d2
 	move.w	tri_p2+r3_y(a6),d3
-	movea.l	a5,a0
+	movea.l	a4,a0
 	jsr	line
 
 	move.w	tri_p2+r3_x(a6),d0
 	move.w	tri_p2+r3_y(a6),d1
 	move.w	tri_p0+r3_x(a6),d2
 	move.w	tri_p0+r3_y(a6),d3
-	movea.l	a5,a0
+	movea.l	a4,a0
 	jsr	line
 
+	endif
 .tri_done:
 	adda.l	#tri_size,a6
-	cmpa.l	a3,a6
+	cmpa.l	a5,a6
 	bne	.tri
 
 	addi.w	#1,angle
@@ -644,6 +657,169 @@ get_coord:
 	sub.l	d2,d1
 	rts
 
+	inline
+; draw a triangle in tx0-sized fb:
+; 1. obtain the tri bounding box
+; 2. obtain scan-conversion box as an intersection of tri box with fb box
+; 3. scan the rows of the scan box left to right, by tri right edge(s):
+;
+;         |-----o      |
+;         |----oooo    |
+;         |---ooooooo  |
+;         |--oooooooooo|
+;         |-oooooo     |
+;         |oo          |
+;
+; d0.w: p0.x
+; d1.w: p0.y
+; d2.w: p1.x
+; d3.w: p1.y
+; d4.w: p2.x
+; d5.w: p2.y
+; a0: basis ptr
+; a1: bbox scratch ptr
+; a2: fb ptr
+; clobbers: d6-d7, a3
+tri:
+	; get the bounds of the tri
+	move.w	d0,d6 ; min.x
+	move.w	d0,d7 ; max.x
+
+	cmp.w	d2,d6
+	ble	.min_x1_done
+	move.w	d2,d6
+	bra	.max_x1_done
+.min_x1_done:
+	cmp.w	d2,d7
+	bge	.max_x1_done
+	move.w	d2,d7
+.max_x1_done:
+	cmp.w	d4,d6
+	ble	.min_x2_done
+	move.w	d4,d6
+	bra	.max_x2_done
+.min_x2_done:
+	cmp.w	d4,d7
+	bge	.max_x2_done
+	move.w	d4,d7
+.max_x2_done:
+	move.w	d6,box_min+r2_x(a1)
+	move.w	d7,box_max+r2_x(a1)
+
+	move.w	d1,d6 ; min.y
+	move.w	d1,d7 ; max.y
+
+	cmp.w	d3,d6
+	ble	.min_y1_done
+	move.w	d3,d6
+	bra	.max_y1_done
+.min_y1_done:
+	cmp.w	d3,d7
+	bge	.max_y1_done
+	move.w	d3,d7
+.max_y1_done:
+	cmp.w	d5,d6
+	ble	.min_y2_done
+	move.w	d5,d6
+	bra	.max_y2_done
+.min_y2_done:
+	cmp.w	d5,d7
+	bge	.max_y2_done
+	move.w	d5,d7
+.max_y2_done:
+	move.w	d6,box_min+r2_y(a1)
+	move.w	d7,box_max+r2_y(a1)
+
+	; intersect tri bounds with screen bounds
+	move.w	box_min+r2_x(a1),d4
+	bge	.scr_x0_done
+	moveq	#0,d4
+.scr_x0_done:
+	move.w	box_min+r2_y(a1),d5
+	bge	.scr_y0_done
+	moveq	#0,d5
+.scr_y0_done:
+	move.w	box_max+r2_x(a1),d2
+	cmp.w	#tx0_w-1,d2
+	ble	.scr_x1_done
+	move.w	#tx0_w-1,d2
+.scr_x1_done:
+	move.w	box_max+r2_y(a1),d3
+	cmp.w	#tx0_h-1,d3
+	ble	.scr_y1_done
+	move.w	#tx0_h-1,d3
+.scr_y1_done:
+	cmp.w	d4,d2
+	bge	.valid_x
+	rts
+.valid_x:
+	cmp.w	d5,d3
+	bge	.valid_y
+	rts
+.valid_y:
+	movea.l	a2,a3
+
+	move.w	#tx0_w,d0
+	mulu.w	d5,d0
+	adda.w	d0,a2
+	adda.w	d4,a2 ; min ptr
+
+	move.w	#tx0_w,d0
+	mulu.w	d3,d0
+	adda.w	d0,a3
+	adda.w	d2,a3 ; max ptr
+
+	; repurpose tri bounds as { x1, x0 }
+	move.w	d2,0(a1)
+	move.w	d4,2(a1)
+
+.pixel: ; scan-convert the scr-space tri
+	move.w	d4,d0
+	move.w	d5,d1
+	jsr	get_coord
+
+	; if {s|t} < 0 || (s+t) > area then pixel is outside
+	move.l	d0,d6
+	or.l	d1,d6
+	blt	.advance
+	add.l	d1,d0
+	cmp.l	pb_area(a0),d0
+	ble	.plot
+.advance:
+	addq.l	#1,a2
+	addq.w	#1,d4
+	cmp.w	0(a1),d4
+	ble	.pixel
+	bra	.row_done
+.streak:
+	move.w	d4,d0
+	move.w	d5,d1
+	jsr	get_coord
+
+	; if {s|t} < 0 || (s+t) > area then pixel is outside
+	move.l	d0,d6
+	or.l	d1,d6
+	blt	.row_done
+	add.l	d1,d0
+	cmp.l	pb_area(a0),d0
+	bgt	.row_done
+.plot:
+	move.b	color,(a2)+
+	addq.w	#1,d4
+	cmp.w	0(a1),d4
+	ble	.streak
+.row_done:
+	adda.w	#tx0_w,a2
+	suba.w	d4,a2
+	move.w	2(a1),d4
+	addq.w	#1,d5
+	adda.w	d4,a2
+	cmpa.l	a3,a2
+	bls	.pixel
+	rts
+
+	einline
+
 pattern: ; fb clear pattern
 	dcb.l	4, '    '
 	dcb.l	4, $70707070
@@ -666,55 +842,55 @@ sinLUT14:
 	include "sinLUT14_64.inc"
 tri_obj_0:
 	; z-axis faces
-	dc.w	-23, -23,  25
-	dc.w	 22, -23,  25
-	dc.w	-23,  22,  25
+	dc.w	-25, -25,  25
+	dc.w	 25, -25,  25
+	dc.w	-25,  25,  25
 
-	dc.w	-22,  23,  25
-	dc.w	 23, -22,  25
-	dc.w	 23,  23,  25
+	dc.w	-25,  25,  25
+	dc.w	 25, -25,  25
+	dc.w	 25,  25,  25
 
-	dc.w	-23, -23, -25
-	dc.w	-23,  22, -25
-	dc.w	 22, -23, -25
+	dc.w	-25, -25, -25
+	dc.w	-25,  25, -25
+	dc.w	 25, -25, -25
 
-	dc.w	-22,  23, -25
-	dc.w	 23,  23, -25
-	dc.w	 23, -22, -25
+	dc.w	-25,  25, -25
+	dc.w	 25,  25, -25
+	dc.w	 25, -25, -25
 
 	; y-axis faces
-	dc.w	-23,  25, -23
-	dc.w	-23,  25,  22
-	dc.w	 22,  25, -23
+	dc.w	-25,  25, -25
+	dc.w	-25,  25,  25
+	dc.w	 25,  25, -25
                           
-	dc.w	 23,  25, -22
-	dc.w	-22,  25,  23
-	dc.w	 23,  25,  23
+	dc.w	 25,  25, -25
+	dc.w	-25,  25,  25
+	dc.w	 25,  25,  25
                      
-	dc.w	-23, -25, -23
-	dc.w	 22, -25, -23
-	dc.w	-23, -25,  22
+	dc.w	-25, -25, -25
+	dc.w	 25, -25, -25
+	dc.w	-25, -25,  25
                           
-	dc.w	 23, -25, -22
-	dc.w	 23, -25,  23
-	dc.w	-22, -25,  23
+	dc.w	 25, -25, -25
+	dc.w	 25, -25,  25
+	dc.w	-25, -25,  25
 
 	; x-axis faces
-	dc.w	 25, -23, -23
-	dc.w	 25,  22, -23
-	dc.w	 25, -23,  22
+	dc.w	 25, -25, -25
+	dc.w	 25,  25, -25
+	dc.w	 25, -25,  25
                      
-	dc.w	 25, -22,  23
-	dc.w	 25,  23, -22
-	dc.w	 25,  23,  23
+	dc.w	 25, -25,  25
+	dc.w	 25,  25, -25
+	dc.w	 25,  25,  25
 
-	dc.w	-25, -23, -23
-	dc.w	-25, -23,  22
-	dc.w	-25,  22, -23
+	dc.w	-25, -25, -25
+	dc.w	-25, -25,  25
+	dc.w	-25,  25, -25
                      
-	dc.w	-25, -22,  23
-	dc.w	-25,  23,  23
-	dc.w	-25,  23, -22
+	dc.w	-25, -25,  25
+	dc.w	-25,  25,  25
+	dc.w	-25,  25, -25
 tri_scr_0:
 	ds.w	(tri_scr_0-tri_obj_0)/2
 tri_end:
