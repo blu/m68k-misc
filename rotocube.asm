@@ -549,8 +549,8 @@ pattern: ; fb clear pattern
 angle:	; current angle
 	dc.w	0
 roto:	; rotation matrix
-	ds.w	9
-	ds.w	9
+	ds.w	mat_size/2
+	ds.w	mat_size/2
 frame_i: ; frame index
 	dc.w	0
 color:	; primitive color
