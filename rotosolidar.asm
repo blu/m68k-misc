@@ -254,58 +254,73 @@ spins	equ $8000
 	bcs	.vert
 
 	movea.l	#ea_texa0,a4
+	lea	tri_obj_0,a5
+	lea	tri_idx_0,a6
 	move.b	#$40,color
 .tri:
+	lea	tri_scr_0,a3
 	addi.b	#1,color
 
-	move.w	tri_p0+r3_x(a6),d0
-	move.w	tri_p0+r3_y(a6),d1
-	move.w	tri_p1+r3_x(a6),d2
-	move.w	tri_p1+r3_y(a6),d3
-	move.w	tri_p2+r3_x(a6),d4
-	move.w	tri_p2+r3_y(a6),d5
+	move.w	idx_p0(a6),d1
+	move.w	idx_p1(a6),d3
+	move.w	idx_p2(a6),d5
+	move.w	r3_x(a3,d1.w),d0
+	move.w	r3_y(a3,d1.w),d1
+	move.w	r3_x(a3,d3.w),d2
+	move.w	r3_y(a3,d3.w),d3
+	move.w	r3_x(a3,d5.w),d4
+	move.w	r3_y(a3,d5.w),d5
 	lea	pb,a0
 	jsr	init_pb
 	ble	.tri_done
 
 	ifd do_fill
 	; scan-convert the scr-space tri
-	move.w	tri_p0+r3_x(a6),d0
-	move.w	tri_p0+r3_y(a6),d1
-	move.w	tri_p1+r3_x(a6),d2
-	move.w	tri_p1+r3_y(a6),d3
-	move.w	tri_p2+r3_x(a6),d4
-	move.w	tri_p2+r3_y(a6),d5
+	move.w	idx_p0(a6),d1
+	move.w	idx_p1(a6),d3
+	move.w	idx_p2(a6),d5
+	move.w	r3_x(a3,d1.w),d0
+	move.w	r3_y(a3,d1.w),d1
+	move.w	r3_x(a3,d3.w),d2
+	move.w	r3_y(a3,d3.w),d3
+	move.w	r3_x(a3,d5.w),d4
+	move.w	r3_y(a3,d5.w),d5
 	lea	pb,a0
 	movea.l	a4,a1
 	jsr	tri
 
 	else
 	; scan-convert the scr-space tri edges
-	move.w	tri_p0+r3_x(a6),d0
-	move.w	tri_p0+r3_y(a6),d1
-	move.w	tri_p1+r3_x(a6),d2
-	move.w	tri_p1+r3_y(a6),d3
+	move.w	idx_p0(a6),d1
+	move.w	idx_p1(a6),d3
+	move.w	r3_x(a3,d1.w),d0
+	move.w	r3_y(a3,d1.w),d1
+	move.w	r3_x(a3,d3.w),d2
+	move.w	r3_y(a3,d3.w),d3
 	movea.l	a4,a0
 	jsr	line
 
-	move.w	tri_p1+r3_x(a6),d0
-	move.w	tri_p1+r3_y(a6),d1
-	move.w	tri_p2+r3_x(a6),d2
-	move.w	tri_p2+r3_y(a6),d3
+	move.w	idx_p1(a6),d1
+	move.w	idx_p2(a6),d3
+	move.w	r3_x(a3,d1.w),d0
+	move.w	r3_y(a3,d1.w),d1
+	move.w	r3_x(a3,d3.w),d2
+	move.w	r3_y(a3,d3.w),d3
 	movea.l	a4,a0
 	jsr	line
 
-	move.w	tri_p2+r3_x(a6),d0
-	move.w	tri_p2+r3_y(a6),d1
-	move.w	tri_p0+r3_x(a6),d2
-	move.w	tri_p0+r3_y(a6),d3
+	move.w	idx_p2(a6),d1
+	move.w	idx_p0(a6),d3
+	move.w	r3_x(a3,d1.w),d0
+	move.w	r3_y(a3,d1.w),d1
+	move.w	r3_x(a3,d3.w),d2
+	move.w	r3_y(a3,d3.w),d3
 	movea.l	a4,a0
 	jsr	line
 
 	endif
 .tri_done:
-	adda.l	#tri_size,a6
+	adda.l	#idx_size,a6
 	cmpa.l	a5,a6
 	bne	.tri
 
@@ -352,6 +367,13 @@ tri_p0	so.w 3 ; r3
 tri_p1	so.w 3 ; r3
 tri_p2	so.w 3 ; r3
 tri_size = __SO
+
+; struct idx
+	clrso
+idx_p0	so.w 1
+idx_p1	so.w 1
+idx_p2	so.w 1
+idx_size = __SO
 
 ; parallelogram basis
 ; a triangle defines a basis such that:
@@ -1135,56 +1157,36 @@ color:	; primitive color
 	align 4
 sinLUT14:
 	include "sinLUT14_64.inc"
-tri_obj_0:
+tri_idx_0:
 	; z-axis faces
-	dc.w	-25, -25,  25
-	dc.w	 25, -25,  25
-	dc.w	-25,  25,  25
+	dc.w	0*r3_size, 1*r3_size, 2*r3_size
+	dc.w	2*r3_size, 1*r3_size, 3*r3_size
 
-	dc.w	-25,  25,  25
-	dc.w	 25, -25,  25
-	dc.w	 25,  25,  25
-
-	dc.w	-25, -25, -25
-	dc.w	-25,  25, -25
-	dc.w	 25, -25, -25
-
-	dc.w	-25,  25, -25
-	dc.w	 25,  25, -25
-	dc.w	 25, -25, -25
+	dc.w	4*r3_size, 5*r3_size, 6*r3_size
+	dc.w	6*r3_size, 5*r3_size, 7*r3_size
 
 	; y-axis faces
-	dc.w	-25,  25, -25
-	dc.w	-25,  25,  25
-	dc.w	 25,  25, -25
-                          
-	dc.w	 25,  25, -25
-	dc.w	-25,  25,  25
-	dc.w	 25,  25,  25
-                     
-	dc.w	-25, -25, -25
-	dc.w	 25, -25, -25
-	dc.w	-25, -25,  25
-                          
-	dc.w	 25, -25, -25
-	dc.w	 25, -25,  25
-	dc.w	-25, -25,  25
+	dc.w	7*r3_size, 2*r3_size, 6*r3_size
+	dc.w	6*r3_size, 2*r3_size, 3*r3_size
+
+	dc.w	0*r3_size, 5*r3_size, 1*r3_size
+	dc.w	1*r3_size, 5*r3_size, 4*r3_size
 
 	; x-axis faces
-	dc.w	 25, -25, -25
-	dc.w	 25,  25, -25
+	dc.w	4*r3_size, 6*r3_size, 1*r3_size
+	dc.w	1*r3_size, 6*r3_size, 3*r3_size
+
+	dc.w	7*r3_size, 5*r3_size, 2*r3_size
+	dc.w	2*r3_size, 5*r3_size, 0*r3_size
+tri_obj_0:
+	dc.w	-25, -25,  25
 	dc.w	 25, -25,  25
-                     
-	dc.w	 25, -25,  25
-	dc.w	 25,  25, -25
+	dc.w	-25,  25,  25
 	dc.w	 25,  25,  25
 
+	dc.w	 25, -25, -25
 	dc.w	-25, -25, -25
-	dc.w	-25, -25,  25
-	dc.w	-25,  25, -25
-                     
-	dc.w	-25, -25,  25
-	dc.w	-25,  25,  25
+	dc.w	 25,  25, -25
 	dc.w	-25,  25, -25
 tri_scr_0:
 	ds.w	(tri_scr_0-tri_obj_0)/2
