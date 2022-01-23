@@ -213,7 +213,6 @@ spins	equ $8000
 	cmpa.l	a6,a4
 	bcs	.vert
 
-	; scan-convert the scr-space tri edges
 	movea.l	#ea_texa0,a4
 	move.b	#$40,color
 .tri:
@@ -230,6 +229,7 @@ spins	equ $8000
 	ble	.tri_done
 
 	ifd do_fill
+	; scan-convert the scr-space tri
 	move.w	tri_p0+r3_x(a6),d0
 	move.w	tri_p0+r3_y(a6),d1
 	move.w	tri_p1+r3_x(a6),d2
@@ -242,6 +242,7 @@ spins	equ $8000
 	jsr	tri
 
 	else
+	; scan-convert the scr-space tri edges
 	move.w	tri_p0+r3_x(a6),d0
 	move.w	tri_p0+r3_y(a6),d1
 	move.w	tri_p1+r3_x(a6),d2
