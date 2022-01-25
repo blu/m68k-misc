@@ -29,10 +29,10 @@ memset	equ memset8
 	; plot graph paper on channel B -- symbols
 	lea.l	pattern,a0
 	jsr	clear_text1
-again:
+.again:
 	move.b	#18,d5
 	movea.l	#ea_texa1,a3
-forward:
+.forward:
 	; plot graph paper on channel B -- colors
 	lea.l	pattern+4*4,a0
 	jsr	clear_texa1
@@ -41,10 +41,10 @@ forward:
 	adda.l	#1,a3
 
 	subi.b	#1,d5
-	bne	forward
+	bne	.forward
 
 	move.b	#18,d5
-reverse:
+.reverse:
 	; plot graph paper on channel B -- colors
 	lea.l	pattern+4*4,a0
 	jsr	clear_texa1
@@ -53,9 +53,9 @@ reverse:
 	jsr	frame
 
 	subi.b	#1,d5
-	bne	reverse
+	bne	.reverse
 
-	bra	again
+	bra	.again
 
 	; some day
 	moveq	#0,d0 ; syscall_exit
@@ -259,23 +259,23 @@ frame:
 	movea.l	#ea_texa1+tx1_w*LINES,a2
 	moveq	#1,d3
 	moveq	#1,d4
-line:
+.line:
 	movea.l	a1,a0
 	move.l	#$41414141,d0
 	move.l	d4,d1
 	jsr	memset
 
 	cmpi.w	#LINES/(COLUMNS-LINES),d3
-	bne	param
+	bne	.param
 	moveq	#0,d3
 	adda.w	#1,a1
-param:
+.param:
 	addi.w	#1,d3
 	addi.w	#1,d4
 
 	adda.w	#tx1_w,a1
 	cmpa.l	a2,a1
-	blt	line
+	blt	.line
 
 	move.w	frame_i,d0
 	addi.w	#1,d0
