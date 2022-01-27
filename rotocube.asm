@@ -9,6 +9,7 @@
 ; do_clip (define): enforce clipping in primitives
 ; do_wait (define): enforce spinloop at end of frame
 ; do_clear (define): enforce fb clear at start of frame
+; do_persp (define): enforce perspective projection
 
 	include "plat_a2560k.inc"
 
@@ -195,6 +196,18 @@ spins	equ $8000
 	move.l	a2,d1
 	move.l	a3,d2
 
+	ifd do_persp
+	if target_cpu >= 2
+	; apply perspective for cam looking along -Z
+	subi.l	#84<<14,d2 ; proj plane at 64
+	neg.l	d2
+
+	asl.l	#6,d0
+	asl.l	#6,d1
+	divs.l	d2,d0
+	divs.l	d2,d1
+
+	else
 	; fx16.14 -> int16
 	asr.l	d6,d0
 	addx.w	d7,d0
@@ -203,6 +216,29 @@ spins	equ $8000
 	asr.l	d6,d2
 	addx.w	d7,d2
 
+	; apply perspective for cam looking along -Z
+	subi.w	#84,d2 ; proj plane at 64
+	neg.w	d2
+
+	asl.w	#6,d0
+	asl.w	#6,d1
+	ext.l	d0
+	ext.l	d1
+	divs.w	d2,d0
+	divs.w	d2,d1
+
+	endif
+	else
+	; fx16.14 -> int16
+	asr.l	d6,d0
+	addx.w	d7,d0
+	asr.l	d6,d1
+	addx.w	d7,d1
+	asr.l	d6,d2
+	addx.w	d7,d2
+
+	endif
+	; translate origin to center of fb
 	addi.w	#tx0_w/2,d0
 	addi.w	#tx0_h/2,d1
 
