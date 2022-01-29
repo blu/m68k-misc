@@ -9,6 +9,7 @@
 ; do_clip (define): enforce clipping in primitives
 ; do_wait (define): enforce spinloop at end of frame
 ; do_clear (define): enforce fb clear at start of frame
+; do_fill (define): enforce filled tri mode
 ; do_persp (define): enforce perspective projection
 
 	include "plat_a2560k.inc"
