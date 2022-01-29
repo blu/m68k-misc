@@ -273,8 +273,7 @@ spins	equ $8000
 	move.w	tri_p2+r3_x(a6),d4
 	move.w	tri_p2+r3_y(a6),d5
 	lea	pb,a0
-	lea	bbox,a1
-	movea.l	a4,a2
+	movea.l	a4,a1
 	jsr	tri
 
 	else
@@ -714,9 +713,8 @@ get_coord:
 ; d4.w: p2.x
 ; d5.w: p2.y
 ; a0: basis ptr
-; a1: bbox scratch ptr
-; a2: fb ptr
-; clobbers: d6-d7, a3
+; a1: fb ptr
+; clobbers: d6-d7, a2-a3
 tri:
 	; get the bounds of the tri
 	move.w	d0,d6 ; min.x
@@ -740,8 +738,8 @@ tri:
 	bge	.max_x2_done
 	move.w	d4,d7
 .max_x2_done:
-	move.w	d6,box_min+r2_x(a1)
-	move.w	d7,box_max+r2_x(a1)
+	movea.w	d6,a2 ; min.x
+	movea.w	d7,a3 ; max.x
 
 	move.w	d1,d6 ; min.y
 	move.w	d1,d7 ; max.y
@@ -764,51 +762,48 @@ tri:
 	bge	.max_y2_done
 	move.w	d5,d7
 .max_y2_done:
-	move.w	d6,box_min+r2_y(a1)
-	move.w	d7,box_max+r2_y(a1)
 
 	; intersect tri bounds with screen bounds
-	move.w	box_min+r2_x(a1),d4
+	move.w	a2,d4
 	bge	.scr_x0_done
 	moveq	#0,d4
 .scr_x0_done:
-	move.w	box_min+r2_y(a1),d5
-	bge	.scr_y0_done
-	moveq	#0,d5
-.scr_y0_done:
-	move.w	box_max+r2_x(a1),d2
+	move.w	a3,d2
 	cmp.w	#tx0_w-1,d2
 	ble	.scr_x1_done
 	move.w	#tx0_w-1,d2
 .scr_x1_done:
-	move.w	box_max+r2_y(a1),d3
-	cmp.w	#tx0_h-1,d3
-	ble	.scr_y1_done
-	move.w	#tx0_h-1,d3
-.scr_y1_done:
 	cmp.w	d4,d2
 	bge	.valid_x
 	rts
 .valid_x:
+	move.w	d6,d5
+	bge	.scr_y0_done
+	moveq	#0,d5
+.scr_y0_done:
+	move.w	d7,d3
+	cmp.w	#tx0_h-1,d3
+	ble	.scr_y1_done
+	move.w	#tx0_h-1,d3
+.scr_y1_done:
 	cmp.w	d5,d3
 	bge	.valid_y
 	rts
 .valid_y:
-	movea.l	a2,a3
+	movea.l	a1,a2
 
 	move.w	#tx0_w,d0
 	mulu.w	d5,d0
-	adda.l	d0,a2
-	adda.w	d4,a2 ; min ptr
+	adda.l	d0,a1
+	adda.w	d4,a1 ; min ptr
 
 	move.w	#tx0_w,d0
 	mulu.w	d3,d0
-	adda.l	d0,a3
-	adda.w	d2,a3 ; max ptr
+	adda.l	d0,a2
+	adda.w	d2,a2 ; max ptr
 
-	; repurpose tri bounds as { x1, x0 }
-	move.w	d2,0(a1)
-	move.w	d4,2(a1)
+	move.w	d2,d6 ; x1
+	move.w	d4,d7 ; x0
 
 .pixel: ; scan-convert the scr-space tri
 	move.w	d4,d0
@@ -816,16 +811,16 @@ tri:
 	jsr	get_coord
 
 	; if {s|t} < 0 || (s+t) > area then pixel is outside
-	move.l	d0,d6
-	or.l	d1,d6
+	move.l	d0,d2
+	or.l	d1,d2
 	blt	.advance
 	add.l	d1,d0
 	cmp.l	pb_area(a0),d0
 	ble	.plot
 .advance:
-	addq.l	#1,a2
+	addq.l	#1,a1
 	addq.w	#1,d4
-	cmp.w	0(a1),d4
+	cmp.w	d6,d4
 	ble	.pixel
 	bra	.row_done
 .streak:
@@ -834,24 +829,24 @@ tri:
 	jsr	get_coord
 
 	; if {s|t} < 0 || (s+t) > area then pixel is outside
-	move.l	d0,d6
-	or.l	d1,d6
+	move.l	d0,d2
+	or.l	d1,d2
 	blt	.row_done
 	add.l	d1,d0
 	cmp.l	pb_area(a0),d0
 	bgt	.row_done
 .plot:
-	move.b	color,(a2)+
+	move.b	color,(a1)+
 	addq.w	#1,d4
-	cmp.w	0(a1),d4
+	cmp.w	d6,d4
 	ble	.streak
 .row_done:
-	adda.w	#tx0_w,a2
-	suba.w	d4,a2
-	move.w	2(a1),d4
+	adda.w	#tx0_w,a1
+	suba.w	d4,a1
+	move.w	d7,d4
 	addq.w	#1,d5
-	adda.w	d4,a2
-	cmpa.l	a3,a2
+	adda.w	d4,a1
+	cmpa.l	a2,a1
 	bls	.pixel
 	rts
 
@@ -862,8 +857,6 @@ pattern: ; fb clear pattern
 	dcb.l	4, $70707070
 pb:	; parallelogram basis
 	ds.w	pb_size/2
-bbox:	; primitive aabb
-	ds.w	box_size/2
 angle:	; current angle
 	dc.w	0
 roto:	; rotation matrix
