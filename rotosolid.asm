@@ -845,7 +845,7 @@ tri:
 	suba.w	d4,a1
 	move.w	d7,d4
 	addq.w	#1,d5
-	adda.w	d4,a1
+	adda.w	d7,a1
 	cmpa.l	a2,a1
 	bls	.pixel
 	rts
