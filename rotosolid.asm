@@ -798,12 +798,12 @@ tri:
 
 	move.w	#tx0_w,d0
 	mulu.w	d5,d0
-	adda.w	d0,a2
+	adda.l	d0,a2
 	adda.w	d4,a2 ; min ptr
 
 	move.w	#tx0_w,d0
 	mulu.w	d3,d0
-	adda.w	d0,a3
+	adda.l	d0,a3
 	adda.w	d2,a3 ; max ptr
 
 	; repurpose tri bounds as { x1, x0 }
