@@ -718,29 +718,27 @@ get_coord:
 ; clobbers: d6-d7, a2-a3
 tri:
 	; get the bounds of the tri
-	move.w	d0,d6 ; min.x
-	move.w	d0,d7 ; max.x
+	move.w	d0,a2 ; min.x
+	move.w	d0,a3 ; max.x
 
-	cmp.w	d2,d6
+	cmpa.w	d2,a2
 	ble	.min_x1_done
-	move.w	d2,d6
+	movea.w	d2,a2
 	bra	.max_x1_done
 .min_x1_done:
-	cmp.w	d2,d7
+	cmpa.w	d2,a3
 	bge	.max_x1_done
-	move.w	d2,d7
+	movea.w	d2,a3
 .max_x1_done:
-	cmp.w	d4,d6
+	cmpa.w	d4,a2
 	ble	.min_x2_done
-	move.w	d4,d6
+	movea.w	d4,a2
 	bra	.max_x2_done
 .min_x2_done:
-	cmp.w	d4,d7
+	cmpa.w	d4,a3
 	bge	.max_x2_done
-	move.w	d4,d7
+	movea.w	d4,a3
 .max_x2_done:
-	movea.w	d6,a2 ; min.x
-	movea.w	d7,a3 ; max.x
 
 	move.w	d1,d6 ; min.y
 	move.w	d1,d7 ; max.y
