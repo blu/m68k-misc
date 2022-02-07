@@ -876,6 +876,190 @@ tri:
 
 	einline
 
+	inline
+; compute a minimal-delimiter array for tx0-sized bounds
+; d0.w: x0
+; d1.w: y0
+; d2.w: x1
+; d3.w: y1
+; a0: delimiter array ptr
+; clobbers: d4-d7
+delim_min:
+	; compute initial position in the array
+	lea	(a0,d1.w*2),a0
+
+	moveq	#1,d6 ; dir_x
+	move.w	d2,d4
+	sub.w	d0,d4 ; dx
+	bge	.dx_done
+	neg.w	d4
+	neg.w	d6
+.dx_done:
+	moveq	#1,d7 ; dir_y
+	move.w	d3,d5
+	sub.w	d1,d5 ; dy
+	bge	.dy_done
+	neg.w	d5
+	neg.w	d7
+.dy_done:
+	cmp.w	d4,d5
+	bge	.high_slope
+
+	; low slope: iterate along x
+	add.w	d5,d5 ; 2 dy
+	move.w	d5,d3
+	sub.w	d4,d3 ; 2 dy - dx
+	add.w	d4,d4 ; 2 dx
+.loop_x:
+	cmp.w	d0,d2
+	beq	.epilog
+	ifd do_clip
+	cmp.w	#tx0_h,d1
+	bcc	.next_x
+	endif
+	cmp.w	(a0),d0
+	bge	.next_x
+	move.w	d0,(a0)
+.next_x:
+	add.w	d6,d0
+	tst.w	d3
+	ble	.x_done
+	lea	(a0,d7.w*2),a0
+	sub.w	d4,d3
+	add.w	d7,d1
+.x_done:
+	add.w	d5,d3
+	bra	.loop_x
+.high_slope: ; iterate along y
+	add.w	d4,d4 ; 2 dx
+	move.w	d4,d2
+	sub.w	d5,d2 ; 2 dx - dy
+	add.w	d5,d5 ; 2 dy
+.loop_y:
+	cmp.w	d1,d3
+	beq	.epilog
+	ifd do_clip
+	cmp.w	#tx0_h,d1
+	bcc	.next_y
+	endif
+	cmp.w	(a0),d0
+	bge	.next_y
+	move.w	d0,(a0)
+.next_y:
+	lea	(a0,d7.w*2),a0
+	add.w	d7,d1
+	tst.w	d2
+	ble	.y_done
+	sub.w	d5,d2
+	add.w	d6,d0
+.y_done:
+	add.w	d4,d2
+	bra	.loop_y
+.epilog:
+	ifd do_clip
+	cmp.w	#tx0_h,d1
+	bcc	.skip
+	endif
+	cmp.w	(a0),d0
+	bge	.skip
+	move.w	d0,(a0)
+.skip:
+	rts
+
+	einline
+
+	inline
+; compute a maximal-delimiter array for tx0-sized bounds
+; d0.w: x0
+; d1.w: y0
+; d2.w: x1
+; d3.w: y1
+; a0: delimiter array ptr
+; clobbers: d4-d7
+delim_max:
+	; compute initial position in the array
+	lea	(a0,d1.w*2),a0
+
+	moveq	#1,d6 ; dir_x
+	move.w	d2,d4
+	sub.w	d0,d4 ; dx
+	bge	.dx_done
+	neg.w	d4
+	neg.w	d6
+.dx_done:
+	moveq	#1,d7 ; dir_y
+	move.w	d3,d5
+	sub.w	d1,d5 ; dy
+	bge	.dy_done
+	neg.w	d5
+	neg.w	d7
+.dy_done:
+	cmp.w	d4,d5
+	bge	.high_slope
+
+	; low slope: iterate along x
+	add.w	d5,d5 ; 2 dy
+	move.w	d5,d3
+	sub.w	d4,d3 ; 2 dy - dx
+	add.w	d4,d4 ; 2 dx
+.loop_x:
+	cmp.w	d0,d2
+	beq	.epilog
+	ifd do_clip
+	cmp.w	#tx0_h,d1
+	bcc	.next_x
+	endif
+	cmp.w	(a0),d0
+	ble	.next_x
+	move.w	d0,(a0)
+.next_x:
+	add.w	d6,d0
+	tst.w	d3
+	ble	.x_done
+	lea	(a0,d7.w*2),a0
+	sub.w	d4,d3
+	add.w	d7,d1
+.x_done:
+	add.w	d5,d3
+	bra	.loop_x
+.high_slope: ; iterate along y
+	add.w	d4,d4 ; 2 dx
+	move.w	d4,d2
+	sub.w	d5,d2 ; 2 dx - dy
+	add.w	d5,d5 ; 2 dy
+.loop_y:
+	cmp.w	d1,d3
+	beq	.epilog
+	ifd do_clip
+	cmp.w	#tx0_h,d1
+	bcc	.next_y
+	endif
+	cmp.w	(a0),d0
+	ble	.next_y
+	move.w	d0,(a0)
+.next_y:
+	lea	(a0,d7.w*2),a0
+	add.w	d7,d1
+	tst.w	d2
+	ble	.y_done
+	sub.w	d5,d2
+	add.w	d6,d0
+.y_done:
+	add.w	d4,d2
+	bra	.loop_y
+.epilog:
+	ifd do_clip
+	cmp.w	#tx0_h,d1
+	bcc	.skip
+	endif
+	cmp.w	(a0),d0
+	ble	.skip
+	move.w	d0,(a0)
+.skip:
+	rts
+
+	einline
+
 pattern: ; fb clear pattern
 	dcb.l	4, '    '
 	dcb.l	4, $70707070
