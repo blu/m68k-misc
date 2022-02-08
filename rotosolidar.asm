@@ -912,7 +912,7 @@ delim_min:
 	add.w	d4,d4 ; 2 dx
 .loop_x:
 	cmp.w	d0,d2
-	beq	.epilog
+	beq	.x_epilog
 	ifd do_clip
 	cmp.w	#tx0_h,d1
 	bcc	.next_x
@@ -930,6 +930,17 @@ delim_min:
 .x_done:
 	add.w	d5,d3
 	bra	.loop_x
+.x_epilog:
+	ifd do_clip
+	cmp.w	#tx0_h,d1
+	bcc	.x_skip
+	endif
+	cmp.w	(a0),d0
+	bge	.x_skip
+	move.w	d0,(a0)
+.x_skip:
+	rts
+
 .high_slope: ; iterate along y
 	add.w	d4,d4 ; 2 dx
 	move.w	d4,d2
@@ -937,13 +948,11 @@ delim_min:
 	add.w	d5,d5 ; 2 dy
 .loop_y:
 	cmp.w	d1,d3
-	beq	.epilog
+	beq	.y_epilog
 	ifd do_clip
 	cmp.w	#tx0_h,d1
 	bcc	.next_y
 	endif
-	cmp.w	(a0),d0
-	bge	.next_y
 	move.w	d0,(a0)
 .next_y:
 	lea	(a0,d7.w*2),a0
@@ -955,15 +964,13 @@ delim_min:
 .y_done:
 	add.w	d4,d2
 	bra	.loop_y
-.epilog:
+.y_epilog:
 	ifd do_clip
 	cmp.w	#tx0_h,d1
-	bcc	.skip
+	bcc	.y_skip
 	endif
-	cmp.w	(a0),d0
-	bge	.skip
 	move.w	d0,(a0)
-.skip:
+.y_skip:
 	rts
 
 	einline
@@ -1004,7 +1011,7 @@ delim_max:
 	add.w	d4,d4 ; 2 dx
 .loop_x:
 	cmp.w	d0,d2
-	beq	.epilog
+	beq	.x_epilog
 	ifd do_clip
 	cmp.w	#tx0_h,d1
 	bcc	.next_x
@@ -1022,6 +1029,17 @@ delim_max:
 .x_done:
 	add.w	d5,d3
 	bra	.loop_x
+.x_epilog:
+	ifd do_clip
+	cmp.w	#tx0_h,d1
+	bcc	.x_skip
+	endif
+	cmp.w	(a0),d0
+	ble	.x_skip
+	move.w	d0,(a0)
+.x_skip:
+	rts
+
 .high_slope: ; iterate along y
 	add.w	d4,d4 ; 2 dx
 	move.w	d4,d2
@@ -1029,13 +1047,11 @@ delim_max:
 	add.w	d5,d5 ; 2 dy
 .loop_y:
 	cmp.w	d1,d3
-	beq	.epilog
+	beq	.y_epilog
 	ifd do_clip
 	cmp.w	#tx0_h,d1
 	bcc	.next_y
 	endif
-	cmp.w	(a0),d0
-	ble	.next_y
 	move.w	d0,(a0)
 .next_y:
 	lea	(a0,d7.w*2),a0
@@ -1047,15 +1063,13 @@ delim_max:
 .y_done:
 	add.w	d4,d2
 	bra	.loop_y
-.epilog:
+.y_epilog:
 	ifd do_clip
 	cmp.w	#tx0_h,d1
-	bcc	.skip
+	bcc	.y_skip
 	endif
-	cmp.w	(a0),d0
-	ble	.skip
 	move.w	d0,(a0)
-.skip:
+.y_skip:
 	rts
 
 	einline
