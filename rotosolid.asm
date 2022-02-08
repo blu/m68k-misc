@@ -20,6 +20,9 @@ tx0_h	equ 75
 tx1_w	equ 80
 tx1_h	equ 60
 
+fb_w	equ tx0_w
+fb_h	equ tx0_h
+
 spins	equ $8000
 
 	; we want absolute addresses -- with moto/vasm that means
@@ -324,8 +327,6 @@ spins	equ $8000
 	moveq	#0,d0 ; syscall_exit
 	trap	#15
 
-	include "util.inc"
-
 ; struct r2
 	clrso
 r2_x	so.w 1
@@ -539,97 +540,6 @@ lut_sin14:
 lut_cos14:
 	addi.w	#$40,d0
 	bra	lut_sin14
-
-	inline
-; draw a line in tx0-sized fb; last pixel omitted
-; d0.w: x0
-; d1.w: y0
-; d2.w: x1
-; d3.w: y1
-; a0: fb start addr
-; clobbers: d4-d7, a1
-line:
-	; compute x0,y0 addr in fb
-	move.w	d1,d4
-	muls.w	#tx0_w,d4
-	adda.l	d4,a0
-	adda.w	d0,a0
-
-	moveq	#1,d6
-	move.w	d2,d4
-	sub.w	d0,d4 ; dx
-	bge	.dx_done
-	neg.w	d4
-	neg.w	d6
-.dx_done:
-	moveq	#1,d7
-	movea.w	#tx0_w,a1
-	move.w	d3,d5
-	sub.w	d1,d5 ; dy
-	bge	.dy_done
-	neg.w	d5
-	neg.w	d7
-	movea.w	#-tx0_w,a1
-.dy_done:
-	cmp.w	d4,d5
-	bge	.high_slope
-
-	; low slope: iterate along x
-	add.w	d5,d5 ; 2 dy
-	move.w	d5,d3
-	sub.w	d4,d3 ; 2 dy - dx
-	add.w	d4,d4 ; 2 dx
-.loop_x:
-	ifd do_clip
-	cmp.w	#tx0_w,d0
-	bcc	.advance_x
-	cmp.w	#tx0_h,d1
-	bcc	.advance_x
-	endif
-	move.b	color,(a0)
-.advance_x:
-	adda.w	d6,a0
-	add.w	d6,d0
-	tst.w	d3
-	ble	.x_done
-	adda.w	a1,a0
-	sub.w	d4,d3
-	add.w	d7,d1
-.x_done:
-	add.w	d5,d3
-	cmp.w	d0,d2
-	bne	.loop_x
-	rts
-.high_slope: ; iterate along y
-	add.w	d4,d4 ; 2 dx
-	move.w	d4,d2
-	sub.w	d5,d2 ; 2 dx - dy
-	add.w	d5,d5 ; 2 dy
-	bne	.loop_y
-	rts
-.loop_y:
-	ifd do_clip
-	cmp.w	#tx0_w,d0
-	bcc	.advance_y
-	cmp.w	#tx0_h,d1
-	bcc	.advance_y
-	endif
-	move.b	color,(a0)
-.advance_y:
-	adda.w	a1,a0
-	add.w	d7,d1
-	tst.w	d2
-	ble	.y_done
-	adda.w	d6,a0
-	sub.w	d5,d2
-	add.w	d6,d0
-.y_done:
-	add.w	d4,d2
-	cmp.w	d1,d3
-	bne	.loop_y
-	rts
-
-	einline
 
 ; compute parallelogram basis from a tri:
 ;   e01 = p1 - p0
@@ -850,6 +760,9 @@ tri:
 	rts
 
 	einline
+
+	include "util.inc"
+	include "line.inc"
 
 pattern: ; fb clear pattern
 	dcb.l	4, '    '

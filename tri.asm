@@ -6,6 +6,11 @@ tx0_h	equ 75
 tx1_w	equ 80
 tx1_h	equ 60
 
+fb_w	equ tx0_w
+fb_h	equ tx0_h
+
+color	equ $41
+
 spins	equ 0
 
 	; we want absolute addresses -- with moto/vasm that means
@@ -229,96 +234,9 @@ get_coord:
 	sub.l	d2,d1
 	rts
 
-	inline
-; draw a line in tx0-sized fb; line must be longer than a single dot
-; d0.w: x0
-; d1.w: y0
-; d2.w: x1
-; d3.w: y1
-; a0: fb start addr
-; clobbers: d4-d7, a1
-line:
-	; compute x0,y0 addr in fb
-	move.w	d1,d4
-	muls.w	#tx0_w,d4
-	adda.l	d4,a0
-	adda.w	d0,a0
-
-	moveq	#1,d6
-	move.w	d2,d4
-	sub.w	d0,d4 ; dx
-	bge	.dx_done
-	neg.w	d4
-	neg.w	d6
-.dx_done:
-	moveq	#1,d7
-	movea.w	#tx0_w,a1
-	move.w	d3,d5
-	sub.w	d1,d5 ; dy
-	bge	.dy_done
-	neg.w	d5
-	neg.w	d7
-	movea.w	#-tx0_w,a1
-.dy_done:
-	cmp.w	d4,d5
-	bge	.high_slope
-
-	; low slope: iterate along x
-	add.w	d5,d5 ; 2 dy
-	move.w	d5,d3
-	sub.w	d4,d3 ; 2 dy - dx
-	add.w	d4,d4 ; 2 dx
-.loop_x:
-	ifd do_clip
-	cmp.w	#tx0_w,d0
-	bcc	.advance_x
-	cmp.w	#tx0_h,d1
-	bcc	.advance_x
-	endif
-	move.b	#$41,(a0)
-.advance_x:
-	adda.w	d6,a0
-	add.w	d6,d0
-	tst.w	d3
-	ble	.x_done
-	adda.w	a1,a0
-	sub.w	d4,d3
-	add.w	d7,d1
-.x_done:
-	add.w	d5,d3
-	cmp.w	d0,d2
-	bne	.loop_x
-	rts
-.high_slope: ; iterate along y
-	add.w	d4,d4 ; 2 dx
-	move.w	d4,d2
-	sub.w	d5,d2 ; 2 dx - dy
-	add.w	d5,d5 ; 2 dy
-.loop_y:
-	ifd do_clip
-	cmp.w	#tx0_w,d0
-	bcc	.advance_y
-	cmp.w	#tx0_h,d1
-	bcc	.advance_y
-	endif
-	move.b	#$41,(a0)
-.advance_y:
-	adda.w	a1,a0
-	add.w	d7,d1
-	tst.w	d2
-	ble	.y_done
-	adda.w	d6,a0
-	sub.w	d5,d2
-	add.w	d6,d0
-.y_done:
-	add.w	d4,d2
-	cmp.w	d1,d3
-	bne	.loop_y
-	rts
-
-	einline
-
+	include "line.inc"
 	include "util.inc"
+
 pattern:
 	dcb.l	4, '    '
 	dcb.l	4, $70707070
