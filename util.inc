@@ -1,16 +1,15 @@
-; required macros in parent context:
-;
-; ea_text0
-; ea_texa0
-; ea_text1
-; ea_texa1
-; tx0_w
-; tx0_h
-; tx1_w
-; tx1_h
+; control symbols:
+; ea_text0 (address): channel A text
+; ea_texa0 (address): channel A attr
+; ea_text1 (address): channel B text
+; ea_texa1 (address): channel B attr
+; tx0_w (numerical): channel A width
+; tx0_h (numerical): channel A height
+; tx1_w (numerical): channel B width
+; tx1_h (numerical): channel B height
 
 	inline
-; clear tx0-sized text channel
+; clear tx0-sized text channel A
 ; a0: pattern ptr
 ; clobbers d0-d3, a1
 clear_text0:
@@ -27,7 +26,7 @@ clear_text0:
 	einline
 
 	inline
-; clear tx0-sized attr channel
+; clear tx0-sized attr channel A
 ; a0: pattern ptr
 ; clobbers d0-d3, a1
 clear_texa0:
@@ -44,7 +43,7 @@ clear_texa0:
 	einline
 
 	inline
-; clear tx1-sized text fb
+; clear tx1-sized text channel B
 ; a0: pattern ptr
 ; clobbers d0-d3, a1
 clear_text1:
@@ -61,7 +60,7 @@ clear_text1:
 	einline
 
 	inline
-; clear tx1-sized attr fb
+; clear tx1-sized attr channel B
 ; a0: pattern ptr
 ; clobbers d0-d3, a1
 clear_texa1:
