@@ -243,8 +243,8 @@ spins	equ $8000
 
 	endif
 	; translate origin to center of fb
-	addi.w	#tx0_w/2,d0
-	addi.w	#tx0_h/2,d1
+	addi.w	#fb_w/2,d0
+	addi.w	#fb_h/2,d1
 
 	move.w	d0,(a5)+ ; v_out.x
 	move.w	d1,(a5)+ ; v_out.y
@@ -605,7 +605,7 @@ get_coord:
 	rts
 
 	inline
-; draw a non-zero-area triangle in tx0-sized fb:
+; draw a non-zero-area triangle in statically-sized fb:
 ; 1. obtain the tri bounding box
 ; 2. obtain scan-conversion box as an intersection of tri box with fb box
 ; 3. for the vertical span of the scan box, for each scanline find left and right tri delimiters
@@ -624,6 +624,25 @@ get_coord:
 ; a1: fb ptr
 ; clobbers: d6-d7, a2-a3
 tri:
+	; sort vetices in ascending-y order..
+	; if p0.y > p1.y then swap(p0, p1)
+	cmp.w	d1,d3
+	bge	.done_01
+	exg	d0,d2
+	exg	d1,d3
+.done_01:
+	; if p0.y > p2.y then swap(p0, p2)
+	cmp.w	d1,d5
+	bge	.done_02
+	exg	d0,d4
+	exg	d1,d5
+.done_02:
+	; if p1.y > p2.y then swap(p1, p2)
+	cmp.w	d3,d5
+	bge	.done_12
+	exg	d2,d4
+	exg	d3,d5
+.done_12:
 	; get the bounds of the tri
 	move.w	d0,a2 ; min.x
 	move.w	d0,a3 ; max.x
@@ -646,37 +665,17 @@ tri:
 	bge	.max_x2_done
 	movea.w	d4,a3
 .max_x2_done:
-
 	move.w	d1,d6 ; min.y
-	move.w	d1,d7 ; max.y
-
-	cmp.w	d3,d6
-	ble	.min_y1_done
-	move.w	d3,d6
-	bra	.max_y1_done
-.min_y1_done:
-	cmp.w	d3,d7
-	bge	.max_y1_done
-	move.w	d3,d7
-.max_y1_done:
-	cmp.w	d5,d6
-	ble	.min_y2_done
-	move.w	d5,d6
-	bra	.max_y2_done
-.min_y2_done:
-	cmp.w	d5,d7
-	bge	.max_y2_done
-	move.w	d5,d7
-.max_y2_done:
+	move.w	d5,d7 ; max.y
 
 	; intersect tri bounds with screen bounds
 	cmpa.w	#0,a2
 	bge	.scr_x0_done
 	movea.w	#0,a2
 .scr_x0_done:
-	cmpa.w	#tx0_w-1,a3
+	cmpa.w	#fb_w-1,a3
 	ble	.scr_x1_done
-	movea.w	#tx0_w-1,a3
+	movea.w	#fb_w-1,a3
 .scr_x1_done:
 	cmpa.w	a2,a3
 	bge	.valid_x
@@ -686,34 +685,14 @@ tri:
 	bge	.scr_y0_done
 	moveq	#0,d6
 .scr_y0_done:
-	cmpi.w	#tx0_h-1,d7
+	cmpi.w	#fb_h-1,d7
 	ble	.scr_y1_done
-	move.w	#tx0_h-1,d7
+	move.w	#fb_h-1,d7
 .scr_y1_done:
 	cmp.w	d6,d7
 	bge	.valid_y
 	rts
 .valid_y:
-	movem.w	d6-d7/a2-a3,-(sp)
-
-	; if p0.y > p1.y then swap(p0, p1)
-	cmp.w	d1,d3
-	bge	.done_01
-	exg	d0,d2
-	exg	d1,d3
-.done_01:
-	; if p0.y > p2.y then swap(p0, p2)
-	cmp.w	d1,d5
-	bge	.done_02
-	exg	d0,d4
-	exg	d1,d5
-.done_02:
-	; if p1.y > p2.y then swap(p1, p2)
-	cmp.w	d3,d5
-	bge	.done_12
-	exg	d2,d4
-	exg	d3,d5
-.done_12:
 	; if p0.y > 0 then translate tri to y = 0
 	tst.w	d1
 	ble	.at0
@@ -721,6 +700,29 @@ tri:
 	sub.w	d1,d3
 	moveq	#0,d1
 .at0:
+	; alloca x-delimiter array of size max.y - min.y + 1
+	sub.w	d6,d7
+	neg.w	d7
+	if target_cpu >= 2
+	lea	-4(sp,d7.w*4),a2
+	else
+	add.w	d7,d7
+	add.w	d7,d7
+	lea	-4(sp,d7.w),a2
+	endif
+	movea.l	a2,a3
+	exg.l	a2,sp
+	; save tri verts followed by scan y-bounds
+	movem.w	d0-d7,-(sp)
+	; save pb ptr (unused in this version -- for future uses)
+	move.l	a0,-(sp)
+	; init delim array to { max_int, min_int }
+	move.l	#$7fff8000,d6
+.delim_init:
+	move.l	d6,(a3)+
+	cmpa.l	a2,a3
+	bne	.delim_init
+
 	; if p0.y == p1.y then
 	cmp.w	d1,d3
 	bne	.nonflat_top
@@ -728,12 +730,36 @@ tri:
 	cmp.w	d0,d2
 	blt	.lesser1
 	;   lft(p0, p2)
+	lea	20(sp),a0 ; delim arr ptr
+	move.w	$4(sp),d0 ; x0
+	move.w	$6(sp),d1 ; y0
+	move.w	$c(sp),d2 ; x2
+	move.w	$e(sp),d3 ; y2
+	jsr	delim_min
 	;   rgt(p1, p2)
+	lea	22(sp),a0 ; delim arr ptr
+	move.w	$8(sp),d0 ; x1
+	move.w	$a(sp),d1 ; y1
+	move.w	$c(sp),d2 ; x2
+	move.w	$e(sp),d3 ; y2
+	jsr	delim_max
+	bra	.fill
 .lesser1:
 	;   lft(p1, p2)
+	lea	20(sp),a0 ; delim arr ptr
+	move.w	$8(sp),d0 ; x1
+	move.w	$a(sp),d1 ; y1
+	move.w	$c(sp),d2 ; x2
+	move.w	$e(sp),d3 ; y2
+	jsr	delim_min
 	;   rgt(p0, p2)
-	adda.w	#8,sp
-	rts
+	lea	22(sp),a0 ; delim arr ptr
+	move.w	$4(sp),d0 ; x0
+	move.w	$6(sp),d1 ; y0
+	move.w	$c(sp),d2 ; x2
+	move.w	$e(sp),d3 ; y2
+	jsr	delim_max
+	bra	.fill
 
 .nonflat_top:
 	; if p1.y == p2.y then
@@ -743,12 +769,36 @@ tri:
 	cmp.w	d2,d4
 	blt	.lesser2
 	;   lft(p0, p1)
+	lea	20(sp),a0 ; delim arr ptr
+	move.w	$4(sp),d0 ; x0
+	move.w	$6(sp),d1 ; y0
+	move.w	$8(sp),d2 ; x1
+	move.w	$a(sp),d3 ; y1
+	jsr	delim_min
 	;   rgt(p0, p2)
+	lea	22(sp),a0 ; delim arr ptr
+	move.w	$4(sp),d0 ; x0
+	move.w	$6(sp),d1 ; y0
+	move.w	$c(sp),d2 ; x2
+	move.w	$e(sp),d3 ; y2
+	jsr	delim_max
+	bra	.fill
 .lesser2:
 	;   lft(p0, p2)
+	lea	20(sp),a0 ; delim arr ptr
+	move.w	$4(sp),d0 ; x0
+	move.w	$6(sp),d1 ; y0
+	move.w	$c(sp),d2 ; x2
+	move.w	$e(sp),d3 ; y2
+	jsr	delim_min
 	;   rgt(p0, p1)
-	adda.w	#8,sp
-	rts
+	lea	22(sp),a0 ; delim arr ptr
+	move.w	$4(sp),d0 ; x0
+	move.w	$6(sp),d1 ; y0
+	move.w	$8(sp),d2 ; x1
+	move.w	$a(sp),d3 ; y1
+	jsr	delim_max
+	bra	.fill
 
 .nonflat_bot:
 	; compute x on the opposite side to p1 at p1.y:
@@ -775,19 +825,81 @@ tri:
 	blt	.rgt_pointed
 .lft_pointed:
 	;   lft(p0, p1)
+	lea	20(sp),a0 ; delim arr ptr
+	move.w	$4(sp),d0 ; x0
+	move.w	$6(sp),d1 ; y0
+	move.w	$8(sp),d2 ; x1
+	move.w	$a(sp),d3 ; y1
+	jsr	delim_min
 	;   lft(p1, p2)
+	lea	20(sp),a0 ; delim arr ptr
+	move.w	$8(sp),d0 ; x1
+	move.w	$a(sp),d1 ; y1
+	move.w	$c(sp),d2 ; x2
+	move.w	$e(sp),d3 ; y2
+	jsr	delim_min
 	;   rgt(p0, p2)
+	lea	22(sp),a0 ; delim arr ptr
+	move.w	$4(sp),d0 ; x0
+	move.w	$6(sp),d1 ; y0
+	move.w	$c(sp),d2 ; x2
+	move.w	$e(sp),d3 ; y2
+	jsr	delim_max
+	bra	.fill
 .rgt_pointed:
 	;   lft(p0, p2)
+	lea	20(sp),a0 ; delim arr ptr
+	move.w	$4(sp),d0 ; x0
+	move.w	$6(sp),d1 ; y0
+	move.w	$c(sp),d2 ; x2
+	move.w	$e(sp),d3 ; y2
+	jsr	delim_min
 	;   rgt(p0, p1)
+	lea	22(sp),a0 ; delim arr ptr
+	move.w	$4(sp),d0 ; x0
+	move.w	$6(sp),d1 ; y0
+	move.w	$8(sp),d2 ; x1
+	move.w	$a(sp),d3 ; y1
+	jsr	delim_max
 	;   rgt(p1, p2)
-	adda.w	#8,sp
+	lea	22(sp),a0 ; delim arr ptr
+	move.w	$8(sp),d0 ; x1
+	move.w	$a(sp),d1 ; y1
+	move.w	$c(sp),d2 ; x2
+	move.w	$e(sp),d3 ; y2
+	jsr	delim_max
+.fill:
+	; fill the delimited span of each line of the scan box
+	move.w	16(sp),d2 ; scan.y0
+	mulu.w	#fb_w,d2
+	adda.l	d2,a1
+	lea	20(sp),a3
+.scanline:
+	move.w	(a3)+,d0
+	move.w	(a3)+,d1
+	ifd do_clip
+	endif
+	lea	(a1,d0.w),a0
+	sub.w	d0,d1
+	addq.w	#1,d1
+	ext.l	d1
+	move.b	color,d0
+	jsr	memset1
+.next_line:
+	adda.w	#fb_w,a1
+	cmpa.l	a2,a3
+	bne	.scanline
+
+	movea.l	a2,sp
 	rts
 
 	einline
 
 	inline
-; compute a minimal-delimiter array for tx0-sized bounds
+; compute a minimal-x delimiter array for statically-sized vertical bounds
+; routine updates an array with x-minima from a 2D linear interpolation
+; upon first use the array must be initialized to MAX_INT; this is a shortcut
+; -- a properly optimized version would drop this requirement
 ; d0.w: x0
 ; d1.w: y0
 ; d2.w: x1
@@ -795,8 +907,15 @@ tri:
 ; a0: delimiter array ptr
 ; clobbers: d4-d7
 delim_min:
-	; compute initial position in the array
-	lea	(a0,d1.w*2),a0
+	; compute initial offset from the array start
+	if target_cpu >= 2
+	lea	(a0,d1.w*4),a0
+	else
+	move.w	d1,d4
+	add.w	d4,d4
+	add.w	d4,d4
+	adda.w	d4,a0
+	endif
 
 	moveq	#1,d6 ; dir_x
 	move.w	d2,d4
@@ -824,7 +943,7 @@ delim_min:
 	cmp.w	d0,d2
 	beq	.x_epilog
 	ifd do_clip
-	cmp.w	#tx0_h,d1
+	cmp.w	#fb_h,d1
 	bcc	.next_x
 	endif
 	cmp.w	(a0),d0
@@ -834,7 +953,7 @@ delim_min:
 	add.w	d6,d0
 	tst.w	d3
 	ble	.x_done
-	lea	(a0,d7.w*2),a0
+	lea	(a0,d7.w*4),a0
 	sub.w	d4,d3
 	add.w	d7,d1
 .x_done:
@@ -842,7 +961,7 @@ delim_min:
 	bra	.loop_x
 .x_epilog:
 	ifd do_clip
-	cmp.w	#tx0_h,d1
+	cmp.w	#fb_h,d1
 	bcc	.x_skip
 	endif
 	cmp.w	(a0),d0
@@ -860,12 +979,12 @@ delim_min:
 	cmp.w	d1,d3
 	beq	.y_epilog
 	ifd do_clip
-	cmp.w	#tx0_h,d1
+	cmp.w	#fb_h,d1
 	bcc	.next_y
 	endif
 	move.w	d0,(a0)
 .next_y:
-	lea	(a0,d7.w*2),a0
+	lea	(a0,d7.w*4),a0
 	add.w	d7,d1
 	tst.w	d2
 	ble	.y_done
@@ -876,7 +995,7 @@ delim_min:
 	bra	.loop_y
 .y_epilog:
 	ifd do_clip
-	cmp.w	#tx0_h,d1
+	cmp.w	#fb_h,d1
 	bcc	.y_skip
 	endif
 	move.w	d0,(a0)
@@ -886,7 +1005,10 @@ delim_min:
 	einline
 
 	inline
-; compute a maximal-delimiter array for tx0-sized bounds
+; compute a maximal-x delimiter array for statically-sized vertical bounds
+; routine updates an array with x-maxima from a 2D linear interpolation
+; upon first use the array must be initialized to MIN_INT; this is a shortcut
+; -- a properly optimized version would drop this requirement
 ; d0.w: x0
 ; d1.w: y0
 ; d2.w: x1
@@ -894,8 +1016,15 @@ delim_min:
 ; a0: delimiter array ptr
 ; clobbers: d4-d7
 delim_max:
-	; compute initial position in the array
-	lea	(a0,d1.w*2),a0
+	; compute initial offset from the array start
+	if target_cpu >= 2
+	lea	(a0,d1.w*4),a0
+	else
+	move.w	d1,d4
+	add.w	d4,d4
+	add.w	d4,d4
+	adda.w	d4,a0
+	endif
 
 	moveq	#1,d6 ; dir_x
 	move.w	d2,d4
@@ -923,7 +1052,7 @@ delim_max:
 	cmp.w	d0,d2
 	beq	.x_epilog
 	ifd do_clip
-	cmp.w	#tx0_h,d1
+	cmp.w	#fb_h,d1
 	bcc	.next_x
 	endif
 	cmp.w	(a0),d0
@@ -933,7 +1062,7 @@ delim_max:
 	add.w	d6,d0
 	tst.w	d3
 	ble	.x_done
-	lea	(a0,d7.w*2),a0
+	lea	(a0,d7.w*4),a0
 	sub.w	d4,d3
 	add.w	d7,d1
 .x_done:
@@ -941,7 +1070,7 @@ delim_max:
 	bra	.loop_x
 .x_epilog:
 	ifd do_clip
-	cmp.w	#tx0_h,d1
+	cmp.w	#fb_h,d1
 	bcc	.x_skip
 	endif
 	cmp.w	(a0),d0
@@ -959,12 +1088,12 @@ delim_max:
 	cmp.w	d1,d3
 	beq	.y_epilog
 	ifd do_clip
-	cmp.w	#tx0_h,d1
+	cmp.w	#fb_h,d1
 	bcc	.next_y
 	endif
 	move.w	d0,(a0)
 .next_y:
-	lea	(a0,d7.w*2),a0
+	lea	(a0,d7.w*4),a0
 	add.w	d7,d1
 	tst.w	d2
 	ble	.y_done
@@ -975,7 +1104,7 @@ delim_max:
 	bra	.loop_y
 .y_epilog:
 	ifd do_clip
-	cmp.w	#tx0_h,d1
+	cmp.w	#fb_h,d1
 	bcc	.y_skip
 	endif
 	move.w	d0,(a0)
@@ -986,6 +1115,7 @@ delim_max:
 
 	include "util.inc"
 	include "line.inc"
+	include "memset.inc"
 
 pattern: ; fb clear pattern
 	dcb.l	4, '    '
