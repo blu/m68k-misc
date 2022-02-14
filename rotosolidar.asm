@@ -712,8 +712,31 @@ tri:
 	endif
 	movea.l	a2,a3
 	exg.l	a2,sp
-	; save tri verts followed by scan y-bounds
+	if target_cpu >= 2
+	; save tri verts followed by scan min.y and a dummy word for 4B-alignment
 	movem.w	d0-d7,-(sp)
+l_pbp	equ 0  ; pb ptr
+l_x0	equ 4  ; x0
+l_y0	equ 6  ; y0
+l_x1	equ 8  ; x1
+l_y1	equ 10 ; y1
+l_x2	equ 12 ; x2
+l_y2	equ 14 ; y2
+l_sy0	equ 16 ; scan.y0
+l_dap	equ 20 ; delim arr ptr
+	else
+	; save tri verts followed by scan min.y
+	movem.w	d0-d6,-(sp)
+l_pbp	equ 0  ; pb ptr
+l_x0	equ 4  ; x0
+l_y0	equ 6  ; y0
+l_x1	equ 8  ; x1
+l_y1	equ 10 ; y1
+l_x2	equ 12 ; x2
+l_y2	equ 14 ; y2
+l_sy0	equ 16 ; scan.y0
+l_dap	equ 18 ; delim arr ptr
+	endif
 	; save pb ptr (unused in this version -- for future uses)
 	move.l	a0,-(sp)
 	; init delim array to { max_int, min_int }
@@ -730,34 +753,34 @@ tri:
 	cmp.w	d0,d2
 	blt	.lesser1
 	;   lft(p0, p2)
-	lea	20(sp),a0 ; delim arr ptr
-	move.w	$4(sp),d0 ; x0
-	move.w	$6(sp),d1 ; y0
-	move.w	$c(sp),d2 ; x2
-	move.w	$e(sp),d3 ; y2
+	lea	l_dap+0(sp),a0 ; delim arr ptr
+	move.w	l_x0(sp),d0 ; x0
+	move.w	l_y0(sp),d1 ; y0
+	move.w	l_x2(sp),d2 ; x2
+	move.w	l_y2(sp),d3 ; y2
 	jsr	delim_min
 	;   rgt(p1, p2)
-	lea	22(sp),a0 ; delim arr ptr
-	move.w	$8(sp),d0 ; x1
-	move.w	$a(sp),d1 ; y1
-	move.w	$c(sp),d2 ; x2
-	move.w	$e(sp),d3 ; y2
+	lea	l_dap+2(sp),a0 ; delim arr ptr
+	move.w	l_x1(sp),d0 ; x1
+	move.w	l_y1(sp),d1 ; y1
+	move.w	l_x2(sp),d2 ; x2
+	move.w	l_y2(sp),d3 ; y2
 	jsr	delim_max
 	bra	.fill
 .lesser1:
 	;   lft(p1, p2)
-	lea	20(sp),a0 ; delim arr ptr
-	move.w	$8(sp),d0 ; x1
-	move.w	$a(sp),d1 ; y1
-	move.w	$c(sp),d2 ; x2
-	move.w	$e(sp),d3 ; y2
+	lea	l_dap+0(sp),a0 ; delim arr ptr
+	move.w	l_x1(sp),d0 ; x1
+	move.w	l_y1(sp),d1 ; y1
+	move.w	l_x2(sp),d2 ; x2
+	move.w	l_y2(sp),d3 ; y2
 	jsr	delim_min
 	;   rgt(p0, p2)
-	lea	22(sp),a0 ; delim arr ptr
-	move.w	$4(sp),d0 ; x0
-	move.w	$6(sp),d1 ; y0
-	move.w	$c(sp),d2 ; x2
-	move.w	$e(sp),d3 ; y2
+	lea	l_dap+2(sp),a0 ; delim arr ptr
+	move.w	l_x0(sp),d0 ; x0
+	move.w	l_y0(sp),d1 ; y0
+	move.w	l_x2(sp),d2 ; x2
+	move.w	l_y2(sp),d3 ; y2
 	jsr	delim_max
 	bra	.fill
 
@@ -769,34 +792,34 @@ tri:
 	cmp.w	d2,d4
 	blt	.lesser2
 	;   lft(p0, p1)
-	lea	20(sp),a0 ; delim arr ptr
-	move.w	$4(sp),d0 ; x0
-	move.w	$6(sp),d1 ; y0
-	move.w	$8(sp),d2 ; x1
-	move.w	$a(sp),d3 ; y1
+	lea	l_dap+0(sp),a0 ; delim arr ptr
+	move.w	l_x0(sp),d0 ; x0
+	move.w	l_y0(sp),d1 ; y0
+	move.w	l_x1(sp),d2 ; x1
+	move.w	l_y1(sp),d3 ; y1
 	jsr	delim_min
 	;   rgt(p0, p2)
-	lea	22(sp),a0 ; delim arr ptr
-	move.w	$4(sp),d0 ; x0
-	move.w	$6(sp),d1 ; y0
-	move.w	$c(sp),d2 ; x2
-	move.w	$e(sp),d3 ; y2
+	lea	l_dap+2(sp),a0 ; delim arr ptr
+	move.w	l_x0(sp),d0 ; x0
+	move.w	l_y0(sp),d1 ; y0
+	move.w	l_x2(sp),d2 ; x2
+	move.w	l_y2(sp),d3 ; y2
 	jsr	delim_max
 	bra	.fill
 .lesser2:
 	;   lft(p0, p2)
-	lea	20(sp),a0 ; delim arr ptr
-	move.w	$4(sp),d0 ; x0
-	move.w	$6(sp),d1 ; y0
-	move.w	$c(sp),d2 ; x2
-	move.w	$e(sp),d3 ; y2
+	lea	l_dap+0(sp),a0 ; delim arr ptr
+	move.w	l_x0(sp),d0 ; x0
+	move.w	l_y0(sp),d1 ; y0
+	move.w	l_x2(sp),d2 ; x2
+	move.w	l_y2(sp),d3 ; y2
 	jsr	delim_min
 	;   rgt(p0, p1)
-	lea	22(sp),a0 ; delim arr ptr
-	move.w	$4(sp),d0 ; x0
-	move.w	$6(sp),d1 ; y0
-	move.w	$8(sp),d2 ; x1
-	move.w	$a(sp),d3 ; y1
+	lea	l_dap+2(sp),a0 ; delim arr ptr
+	move.w	l_x0(sp),d0 ; x0
+	move.w	l_y0(sp),d1 ; y0
+	move.w	l_x1(sp),d2 ; x1
+	move.w	l_y1(sp),d3 ; y1
 	jsr	delim_max
 	bra	.fill
 
@@ -825,55 +848,55 @@ tri:
 	blt	.rgt_pointed
 .lft_pointed:
 	;   lft(p0, p1)
-	lea	20(sp),a0 ; delim arr ptr
-	move.w	$4(sp),d0 ; x0
-	move.w	$6(sp),d1 ; y0
-	move.w	$8(sp),d2 ; x1
-	move.w	$a(sp),d3 ; y1
+	lea	l_dap+0(sp),a0 ; delim arr ptr
+	move.w	l_x0(sp),d0 ; x0
+	move.w	l_y0(sp),d1 ; y0
+	move.w	l_x1(sp),d2 ; x1
+	move.w	l_y1(sp),d3 ; y1
 	jsr	delim_min
 	;   lft(p1, p2)
-	lea	20(sp),a0 ; delim arr ptr
-	move.w	$8(sp),d0 ; x1
-	move.w	$a(sp),d1 ; y1
-	move.w	$c(sp),d2 ; x2
-	move.w	$e(sp),d3 ; y2
+	lea	l_dap+0(sp),a0 ; delim arr ptr
+	move.w	l_x1(sp),d0 ; x1
+	move.w	l_y1(sp),d1 ; y1
+	move.w	l_x2(sp),d2 ; x2
+	move.w	l_y2(sp),d3 ; y2
 	jsr	delim_min
 	;   rgt(p0, p2)
-	lea	22(sp),a0 ; delim arr ptr
-	move.w	$4(sp),d0 ; x0
-	move.w	$6(sp),d1 ; y0
-	move.w	$c(sp),d2 ; x2
-	move.w	$e(sp),d3 ; y2
+	lea	l_dap+2(sp),a0 ; delim arr ptr
+	move.w	l_x0(sp),d0 ; x0
+	move.w	l_y0(sp),d1 ; y0
+	move.w	l_x2(sp),d2 ; x2
+	move.w	l_y2(sp),d3 ; y2
 	jsr	delim_max
 	bra	.fill
 .rgt_pointed:
 	;   lft(p0, p2)
-	lea	20(sp),a0 ; delim arr ptr
-	move.w	$4(sp),d0 ; x0
-	move.w	$6(sp),d1 ; y0
-	move.w	$c(sp),d2 ; x2
-	move.w	$e(sp),d3 ; y2
+	lea	l_dap+0(sp),a0 ; delim arr ptr
+	move.w	l_x0(sp),d0 ; x0
+	move.w	l_y0(sp),d1 ; y0
+	move.w	l_x2(sp),d2 ; x2
+	move.w	l_y2(sp),d3 ; y2
 	jsr	delim_min
 	;   rgt(p0, p1)
-	lea	22(sp),a0 ; delim arr ptr
-	move.w	$4(sp),d0 ; x0
-	move.w	$6(sp),d1 ; y0
-	move.w	$8(sp),d2 ; x1
-	move.w	$a(sp),d3 ; y1
+	lea	l_dap+2(sp),a0 ; delim arr ptr
+	move.w	l_x0(sp),d0 ; x0
+	move.w	l_y0(sp),d1 ; y0
+	move.w	l_x1(sp),d2 ; x1
+	move.w	l_y1(sp),d3 ; y1
 	jsr	delim_max
 	;   rgt(p1, p2)
-	lea	22(sp),a0 ; delim arr ptr
-	move.w	$8(sp),d0 ; x1
-	move.w	$a(sp),d1 ; y1
-	move.w	$c(sp),d2 ; x2
-	move.w	$e(sp),d3 ; y2
+	lea	l_dap+2(sp),a0 ; delim arr ptr
+	move.w	l_x1(sp),d0 ; x1
+	move.w	l_y1(sp),d1 ; y1
+	move.w	l_x2(sp),d2 ; x2
+	move.w	l_y2(sp),d3 ; y2
 	jsr	delim_max
 .fill:
 	; fill the delimited span of each line of the scan box
-	move.w	16(sp),d2 ; scan.y0
+	move.w	l_sy0(sp),d2 ; scan.y0
 	mulu.w	#fb_w,d2
 	adda.l	d2,a1
-	lea	20(sp),a3
+	lea	l_dap(sp),a3
 .scanline:
 	move.w	(a3)+,d0
 	move.w	(a3)+,d1
