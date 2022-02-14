@@ -562,4 +562,3 @@ tri_obj_0:
 	dc.w	-25,  23, -22
 tri_scr_0:
 	ds.w	(tri_scr_0-tri_obj_0)/2
-tri_end:
