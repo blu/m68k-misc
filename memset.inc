@@ -13,6 +13,39 @@ memset1:
 	einline
 
 	inline
+; memset a buffer to a given value; 2B inner loop; only aligned writes
+; a0: target
+; d0.l: content; value splatted to long word
+; d1.l: length; 0 is undefined
+; returns: a0: last_written_address + 1
+; clobbers: d2
+memset2:
+	move.l	a0,d2
+
+	btst	#0,d2
+	beq	.head0
+	move.b	d0,(a0)+
+	subi.l	#1,d1
+.head0:
+	cmp.l	#2,d1
+	bcs	.tail0
+
+	move.l	d1,d2
+	lsr.l	#1,d2
+.loop:
+	move.w	d0,(a0)+
+	subi.l	#1,d2
+	bne	.loop
+.tail0:
+	btst	#0,d1
+	beq	.done
+	move.b	d0,(a0)+
+.done:
+	rts
+
+	einline
+
+	inline
 ; memset a buffer to a given value; 4B inner loop; only aligned writes
 ; a0: target
 ; d0.l: content; value splatted to long word

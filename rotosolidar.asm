@@ -11,6 +11,14 @@
 ; do_clear (define): enforce fb clear at start of frame
 ; do_fill (define): enforce filled tri mode
 ; do_persp (define): enforce perspective projection
+; alt_memset (numerical, optional): select memset routine for use by tri routine
+
+	ifnd alt_memset
+alt_memset equ 1
+	endif
+	if alt_memset < 1 || alt_memset > 16 || (alt_memset & (alt_memset - 1))
+	fail "alt_memset must be power-of-two between 1 and 16"
+	endif
 
 	include "plat_a2560k.inc"
 
@@ -897,6 +905,17 @@ l_dap	equ 18 ; delim arr ptr
 	mulu.w	#fb_w,d2
 	adda.l	d2,a1
 	lea	l_dap(sp),a3
+	move.b	color,d3
+	if alt_memset >= 2
+	move.b	d3,d4
+	lsl.w	#8,d3
+	move.b	d4,d3
+	endif
+	if alt_memset >= 4
+	move.w	d3,d4
+	swap	d3
+	move.w	d4,d3
+	endif
 .scanline:
 	move.w	(a3)+,d0
 	move.w	(a3)+,d1
@@ -906,8 +925,22 @@ l_dap	equ 18 ; delim arr ptr
 	sub.w	d0,d1
 	addq.w	#1,d1
 	ext.l	d1
-	move.b	color,d0
+	move.l	d3,d0
+	if alt_memset == 1
 	jsr	memset1
+	endif
+	if alt_memset == 2
+	jsr	memset2
+	endif
+	if alt_memset == 4
+	jsr	memset4
+	endif
+	if alt_memset == 8
+	jsr	memset8
+	endif
+	if alt_memset == 16
+	jsr	memset16
+	endif
 .next_line:
 	adda.w	#fb_w,a1
 	cmpa.l	a2,a3
