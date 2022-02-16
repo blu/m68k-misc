@@ -762,33 +762,51 @@ l_dap	equ 18 ; delim arr ptr
 	blt	.lesser1
 	;   lft(p0, p2)
 	lea	l_dap+0(sp),a0 ; delim arr ptr
+	if target_cpu >= 2
 	move.w	l_x0(sp),d0 ; x0
 	move.w	l_y0(sp),d1 ; y0
 	move.w	l_x2(sp),d2 ; x2
 	move.w	l_y2(sp),d3 ; y2
+	else
+	movem.w	l_x0(sp),d0-d1 ; x0, y0
+	movem.w	l_x2(sp),d2-d3 ; x2, y2
+	endif
 	jsr	delim_min
 	;   rgt(p1, p2)
 	lea	l_dap+2(sp),a0 ; delim arr ptr
+	if target_cpu >= 2
 	move.w	l_x1(sp),d0 ; x1
 	move.w	l_y1(sp),d1 ; y1
 	move.w	l_x2(sp),d2 ; x2
 	move.w	l_y2(sp),d3 ; y2
+	else
+	movem.w	l_x1(sp),d0-d3 ; x1, y1, x2, y2
+	endif
 	jsr	delim_max
 	bra	.fill
 .lesser1:
 	;   lft(p1, p2)
 	lea	l_dap+0(sp),a0 ; delim arr ptr
+	if target_cpu >= 2
 	move.w	l_x1(sp),d0 ; x1
 	move.w	l_y1(sp),d1 ; y1
 	move.w	l_x2(sp),d2 ; x2
 	move.w	l_y2(sp),d3 ; y2
+	else
+	movem.w	l_x1(sp),d0-d3 ; x1, y1, x2, y2
+	endif
 	jsr	delim_min
 	;   rgt(p0, p2)
 	lea	l_dap+2(sp),a0 ; delim arr ptr
+	if target_cpu >= 2
 	move.w	l_x0(sp),d0 ; x0
 	move.w	l_y0(sp),d1 ; y0
 	move.w	l_x2(sp),d2 ; x2
 	move.w	l_y2(sp),d3 ; y2
+	else
+	movem.w	l_x0(sp),d0-d1 ; x0, y0
+	movem.w	l_x2(sp),d2-d3 ; x2, y2
+	endif
 	jsr	delim_max
 	bra	.fill
 
@@ -801,33 +819,51 @@ l_dap	equ 18 ; delim arr ptr
 	blt	.lesser2
 	;   lft(p0, p1)
 	lea	l_dap+0(sp),a0 ; delim arr ptr
+	if target_cpu >= 2
 	move.w	l_x0(sp),d0 ; x0
 	move.w	l_y0(sp),d1 ; y0
 	move.w	l_x1(sp),d2 ; x1
 	move.w	l_y1(sp),d3 ; y1
+	else
+	movem.w	l_x0(sp),d0-d3 ; x0, y0, x1, y1
+	endif
 	jsr	delim_min
 	;   rgt(p0, p2)
 	lea	l_dap+2(sp),a0 ; delim arr ptr
+	if target_cpu >= 2
 	move.w	l_x0(sp),d0 ; x0
 	move.w	l_y0(sp),d1 ; y0
 	move.w	l_x2(sp),d2 ; x2
 	move.w	l_y2(sp),d3 ; y2
+	else
+	movem.w	l_x0(sp),d0-d1 ; x0, y0
+	movem.w	l_x2(sp),d2-d3 ; x2, y2
+	endif
 	jsr	delim_max
 	bra	.fill
 .lesser2:
 	;   lft(p0, p2)
 	lea	l_dap+0(sp),a0 ; delim arr ptr
+	if target_cpu >= 2
 	move.w	l_x0(sp),d0 ; x0
 	move.w	l_y0(sp),d1 ; y0
 	move.w	l_x2(sp),d2 ; x2
 	move.w	l_y2(sp),d3 ; y2
+	else
+	movem.w	l_x0(sp),d0-d1 ; x0, y0
+	movem.w	l_x2(sp),d2-d3 ; x2, y2
+	endif
 	jsr	delim_min
 	;   rgt(p0, p1)
 	lea	l_dap+2(sp),a0 ; delim arr ptr
+	if target_cpu >= 2
 	move.w	l_x0(sp),d0 ; x0
 	move.w	l_y0(sp),d1 ; y0
 	move.w	l_x1(sp),d2 ; x1
 	move.w	l_y1(sp),d3 ; y1
+	else
+	movem.w	l_x0(sp),d0-d3 ; x0, y0, x1, y1
+	endif
 	jsr	delim_max
 	bra	.fill
 
@@ -857,47 +893,73 @@ l_dap	equ 18 ; delim arr ptr
 .lft_pointed:
 	;   lft(p0, p1)
 	lea	l_dap+0(sp),a0 ; delim arr ptr
+	if target_cpu >= 2
 	move.w	l_x0(sp),d0 ; x0
 	move.w	l_y0(sp),d1 ; y0
 	move.w	l_x1(sp),d2 ; x1
 	move.w	l_y1(sp),d3 ; y1
+	else
+	movem.w	l_x0(sp),d0-d3 ; x0, y0, x1, y1
+	endif
 	jsr	delim_min
 	;   lft(p1, p2)
 	lea	l_dap+0(sp),a0 ; delim arr ptr
+	if target_cpu >= 2
 	move.w	l_x1(sp),d0 ; x1
 	move.w	l_y1(sp),d1 ; y1
 	move.w	l_x2(sp),d2 ; x2
 	move.w	l_y2(sp),d3 ; y2
+	else
+	movem.w	l_x1(sp),d0-d3 ; x1, y1, x2, y2
+	endif
 	jsr	delim_min
 	;   rgt(p0, p2)
 	lea	l_dap+2(sp),a0 ; delim arr ptr
+	if target_cpu >= 2
 	move.w	l_x0(sp),d0 ; x0
 	move.w	l_y0(sp),d1 ; y0
 	move.w	l_x2(sp),d2 ; x2
 	move.w	l_y2(sp),d3 ; y2
+	else
+	movem.w	l_x0(sp),d0-d1 ; x0, y0
+	movem.w	l_x2(sp),d2-d3 ; x2, y2
+	endif
 	jsr	delim_max
 	bra	.fill
 .rgt_pointed:
 	;   lft(p0, p2)
 	lea	l_dap+0(sp),a0 ; delim arr ptr
+	if target_cpu >= 2
 	move.w	l_x0(sp),d0 ; x0
 	move.w	l_y0(sp),d1 ; y0
 	move.w	l_x2(sp),d2 ; x2
 	move.w	l_y2(sp),d3 ; y2
+	else
+	movem.w	l_x0(sp),d0-d1 ; x0, y0
+	movem.w	l_x2(sp),d2-d3 ; x2, y2
+	endif
 	jsr	delim_min
 	;   rgt(p0, p1)
 	lea	l_dap+2(sp),a0 ; delim arr ptr
+	if target_cpu >= 2
 	move.w	l_x0(sp),d0 ; x0
 	move.w	l_y0(sp),d1 ; y0
 	move.w	l_x1(sp),d2 ; x1
 	move.w	l_y1(sp),d3 ; y1
+	else
+	movem.w	l_x0(sp),d0-d3 ; x0, y0, x1, y1
+	endif
 	jsr	delim_max
 	;   rgt(p1, p2)
 	lea	l_dap+2(sp),a0 ; delim arr ptr
+	if target_cpu >= 2
 	move.w	l_x1(sp),d0 ; x1
 	move.w	l_y1(sp),d1 ; y1
 	move.w	l_x2(sp),d2 ; x2
 	move.w	l_y2(sp),d3 ; y2
+	else
+	movem.w	l_x1(sp),d0-d3 ; x1, y1, x2, y2
+	endif
 	jsr	delim_max
 .fill:
 	; fill the delimited span of each line of the scan box
