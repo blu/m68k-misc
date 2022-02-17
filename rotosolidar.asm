@@ -264,7 +264,28 @@ spins	equ $8000
 	movea.l	#ea_texa0,a4
 	move.b	#$40,color
 .tri:
+	if alt_memset == 1
 	addi.b	#1,color
+	else
+	move.b	color,d0
+	addq.b	#1,d0
+
+	move.b	d0,d1
+	lsl.w	#8,d0
+	move.b	d1,d0
+
+	if alt_memset >= 4
+	move.w	d0,d1
+	swap	d0
+	move.w	d1,d0
+	endif
+	if alt_memset == 2
+	move.w	d0,color
+	endif
+	if alt_memset >= 4
+	move.l	d0,color
+	endif
+	endif
 
 	move.w	tri_p0+r3_x(a6),d0
 	move.w	tri_p0+r3_y(a6),d1
@@ -967,16 +988,14 @@ l_dap	equ 18 ; delim arr ptr
 	mulu.w	#fb_w,d2
 	adda.l	d2,a1
 	lea	l_dap(sp),a3
+	if alt_memset == 1
 	move.b	color,d3
-	if alt_memset >= 2
-	move.b	d3,d4
-	lsl.w	#8,d3
-	move.b	d4,d3
+	endif
+	if alt_memset == 2
+	move.w	color,d3
 	endif
 	if alt_memset >= 4
-	move.w	d3,d4
-	swap	d3
-	move.w	d4,d3
+	move.l	color,d3
 	endif
 .scanline:
 	move.w	(a3)+,d0
@@ -1238,6 +1257,8 @@ delim_max:
 pattern: ; fb clear pattern
 	dcb.l	4, '    '
 	dcb.l	4, $70707070
+color:	; primitive color (1B splatted to 4B)
+	ds.b	4
 pb:	; parallelogram basis
 	ds.w	pb_size/2
 angle:	; current angle
@@ -1247,8 +1268,6 @@ roto:	; rotation matrix
 	ds.w	mat_size/2
 frame_i: ; frame index
 	dc.w	0
-color:	; primitive color
-	ds.b	1
 
 	align 4
 sinLUT14:
