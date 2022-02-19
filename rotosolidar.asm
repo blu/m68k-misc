@@ -21,6 +21,7 @@ alt_memset equ 1
 	endif
 
 	include "plat_a2560k.inc"
+	include "memset_inl.inc"
 
 tx0_w	equ 100
 tx0_h	equ 75
@@ -1005,22 +1006,21 @@ l_dap	equ 18 ; delim arr ptr
 	lea	(a1,d0.w),a0
 	sub.w	d0,d1
 	addq.w	#1,d1
-	ext.l	d1
 	move.l	d3,d0
 	if alt_memset == 1
-	jsr	memset1
+	memset1_inl
 	endif
 	if alt_memset == 2
-	jsr	memset2
+	memset2_inl
 	endif
 	if alt_memset == 4
-	jsr	memset4
+	memset4_inl
 	endif
 	if alt_memset == 8
-	jsr	memset8
+	memset8_inl
 	endif
 	if alt_memset == 16
-	jsr	memset16
+	memset16_inl
 	endif
 .next_line:
 	adda.w	#fb_w,a1
@@ -1252,7 +1252,6 @@ delim_max:
 
 	include "util.inc"
 	include "line.inc"
-	include "memset.inc"
 
 pattern: ; fb clear pattern
 	dcb.l	4, '    '
