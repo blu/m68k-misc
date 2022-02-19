@@ -1062,9 +1062,9 @@ l_dap	equ 18 ; delim arr ptr
 ; d0.w: x0
 ; d1.w: y0
 ; d2.w: x1
-; d3.w: y1
+; d3.w: y1, y1 > y0
 ; a0: delimiter array ptr
-; clobbers: d4-d7
+; clobbers: d4-d6
 delim_min:
 	; compute initial offset from the array start
 	if target_cpu >= 2
@@ -1083,13 +1083,9 @@ delim_min:
 	neg.w	d4
 	neg.w	d6
 .dx_done:
-	moveq	#1,d7 ; dir_y
 	move.w	d3,d5
 	sub.w	d1,d5 ; dy
-	bge	.dy_done
-	neg.w	d5
-	neg.w	d7
-.dy_done:
+
 	cmp.w	d4,d5
 	bge	.high_slope
 
@@ -1099,8 +1095,6 @@ delim_min:
 	sub.w	d4,d3 ; 2 dy - dx
 	add.w	d4,d4 ; 2 dx
 .loop_x:
-	cmp.w	d0,d2
-	beq	.x_epilog
 	ifd do_clip
 	cmp.w	#fb_h,d1
 	bcc	.next_x
@@ -1112,13 +1106,13 @@ delim_min:
 	add.w	d6,d0
 	tst.w	d3
 	ble	.x_done
-	lea	(a0,d7.w*4),a0
+	addq.l	#4,a0
 	sub.w	d4,d3
-	add.w	d7,d1
+	addq.w	#1,d1
 .x_done:
 	add.w	d5,d3
-	bra	.loop_x
-.x_epilog:
+	cmp.w	d0,d2
+	bne	.loop_x
 	ifd do_clip
 	cmp.w	#fb_h,d1
 	bcc	.x_skip
@@ -1135,24 +1129,22 @@ delim_min:
 	sub.w	d5,d2 ; 2 dx - dy
 	add.w	d5,d5 ; 2 dy
 .loop_y:
-	cmp.w	d1,d3
-	beq	.y_epilog
 	ifd do_clip
 	cmp.w	#fb_h,d1
 	bcc	.next_y
 	endif
 	move.w	d0,(a0)
 .next_y:
-	lea	(a0,d7.w*4),a0
-	add.w	d7,d1
+	addq.l	#4,a0
+	addq.w	#1,d1
 	tst.w	d2
 	ble	.y_done
 	sub.w	d5,d2
 	add.w	d6,d0
 .y_done:
 	add.w	d4,d2
-	bra	.loop_y
-.y_epilog:
+	cmp.w	d1,d3
+	bne	.loop_y
 	ifd do_clip
 	cmp.w	#fb_h,d1
 	bcc	.y_skip
@@ -1171,9 +1163,9 @@ delim_min:
 ; d0.w: x0
 ; d1.w: y0
 ; d2.w: x1
-; d3.w: y1
+; d3.w: y1, y1 > y0
 ; a0: delimiter array ptr
-; clobbers: d4-d7
+; clobbers: d4-d6
 delim_max:
 	; compute initial offset from the array start
 	if target_cpu >= 2
@@ -1192,13 +1184,9 @@ delim_max:
 	neg.w	d4
 	neg.w	d6
 .dx_done:
-	moveq	#1,d7 ; dir_y
 	move.w	d3,d5
 	sub.w	d1,d5 ; dy
-	bge	.dy_done
-	neg.w	d5
-	neg.w	d7
-.dy_done:
+
 	cmp.w	d4,d5
 	bge	.high_slope
 
@@ -1208,8 +1196,6 @@ delim_max:
 	sub.w	d4,d3 ; 2 dy - dx
 	add.w	d4,d4 ; 2 dx
 .loop_x:
-	cmp.w	d0,d2
-	beq	.x_epilog
 	ifd do_clip
 	cmp.w	#fb_h,d1
 	bcc	.next_x
@@ -1221,13 +1207,13 @@ delim_max:
 	add.w	d6,d0
 	tst.w	d3
 	ble	.x_done
-	lea	(a0,d7.w*4),a0
+	addq.l	#4,a0
 	sub.w	d4,d3
-	add.w	d7,d1
+	addq.w	#1,d1
 .x_done:
 	add.w	d5,d3
-	bra	.loop_x
-.x_epilog:
+	cmp.w	d0,d2
+	bne	.loop_x
 	ifd do_clip
 	cmp.w	#fb_h,d1
 	bcc	.x_skip
@@ -1244,24 +1230,22 @@ delim_max:
 	sub.w	d5,d2 ; 2 dx - dy
 	add.w	d5,d5 ; 2 dy
 .loop_y:
-	cmp.w	d1,d3
-	beq	.y_epilog
 	ifd do_clip
 	cmp.w	#fb_h,d1
 	bcc	.next_y
 	endif
 	move.w	d0,(a0)
 .next_y:
-	lea	(a0,d7.w*4),a0
-	add.w	d7,d1
+	addq.l	#4,a0
+	addq.w	#1,d1
 	tst.w	d2
 	ble	.y_done
 	sub.w	d5,d2
 	add.w	d6,d0
 .y_done:
 	add.w	d4,d2
-	bra	.loop_y
-.y_epilog:
+	cmp.w	d1,d3
+	bne	.loop_y
 	ifd do_clip
 	cmp.w	#fb_h,d1
 	bcc	.y_skip
