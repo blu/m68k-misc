@@ -33,7 +33,7 @@ memset	equ memset8
 
 	else
 	; FoenixMCP PGX header
-	org $010000
+	org $10000
 
 	dc.b "PGX", $02
 	dc.l start
@@ -82,10 +82,6 @@ start:
 	; some day
 	moveq	#0,d0 ; syscall_exit
 	trap	#15
-
-pattern:
-	dc.l	'0123', '4567', '89ab', 'cdef'
-	dcb.l	4, $42434243
 
 	inline
 ; memset a buffer to a given value; 4B inner loop; only aligned writes
@@ -313,5 +309,10 @@ frame:
 	rts
 
 	include "util.inc"
+
+	align 2
+pattern:
+	dc.l	'0123', '4567', '89ab', 'cdef'
+	dcb.l	4, $42434243
 frame_i:
 	dc.w	0

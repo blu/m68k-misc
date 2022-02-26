@@ -1,6 +1,6 @@
 #!/bin/bash
 
-# assemblt to PGX 
+# assemblt to PGX
 
 if [ $# == 0 ] ; then
 	echo usage: $0 asm-file [vasm-args]

@@ -1,25 +1,24 @@
-ea_user  equ $020000
-ea_stack equ $080000
-ea_vicky equ $c40000
-ea_text0 equ $c60000
-ea_texa0 equ $c68000
-ea_text1 equ $ca0000
-ea_texa1 equ $ca8000
+	if alt_plat == 0
+	include	"plat_a2560u.inc"
+	else
+	include "plat_a2560k.inc"
+	endif
 
-tx0_w	equ 72
-tx0_h	equ 56
+tx0_w	equ 80
+tx0_h	equ 60
 
 tx1_w	equ 80
 tx1_h	equ 60
 
 paddlen	equ 9
-padd_y	equ tx1_h-3
+padd_y	equ tx0_h-3
 
 ball_w	equ 1
 ball_h	equ 1
 
 spins	equ $8000
 
+	ifd do_morfe
 	; we want absolute addresses -- with moto/vasm that means
 	; just use org; don't use sections as they cause resetting
 	; of the current offset for generation of relocatable code
@@ -31,13 +30,30 @@ spins	equ $8000
 	move.l	a1,usp
 	andi.w	#$dfff,sr
 
-	moveq	#tx1_w/2,d4  ; curr_x
+	else
+	; FoenixMCP PGX header
+	org $10000
+
+	dc.b "PGX", $02
+	dc.l start
+start:
+	endif
+	; hide border and cursor
+	movea.l	#ea_vicky,a0
+	move.l	hw_vicky_border(a0),d0
+	move.l	hw_vicky_cursor(a0),d1
+	and.b	#reset_border_enable,d0
+	move.l	d0,hw_vicky_border(a0)
+	and.b	#reset_cursor_enable,d1
+	move.l	d1,hw_vicky_cursor(a0)
+
+	moveq	#tx0_w/2,d4  ; curr_x
 	moveq	#padd_y-1,d5 ; curr_y
 	moveq	#-1,d6       ; step_x
 	moveq   #-1,d7       ; step_y
 frame:
 	lea.l	pattern,a0
-	jsr	clear_texa1
+	jsr	clear_texa0
 
 	move.w	d4,d0
 	move.w	d5,d1
@@ -49,7 +65,7 @@ frame:
 	; update positions
 	add.w	d6,d4
 	beq	neg_step_x
-	cmpi.w	#tx1_w-ball_w,d4
+	cmpi.w	#tx0_w-ball_w,d4
 	bcs	done_x
 neg_step_x:
 	neg.w	d6
@@ -70,60 +86,14 @@ done_y:
 	moveq	#0,d0 ; syscall_exit
 	trap	#15
 
-; clear text attr channel B
-; a0: pattern ptr
-; clobbers d0-d3, a1
-clear_texa1:
-	movem.l (a0),d0-d3
-	movea.l	#ea_texa1,a0
-	lea	tx1_w*tx1_h(a0),a1
-LLloop:
-	movem.l	d0-d3,(a0)
-	adda.w	#4*4,a0
-	cmpa.l	a1,a0
-	blt	LLloop
-	rts
-
-; memset a buffer to a given value; does unaligned writes
-; a0: target
-; d0: content; value splatted to long word
-; d1: length
-; returns: a0: last_written_address + 1
-; clobbers: d2
-memset:
-	move.l	d1,d2
-	and.l	#-4,d2
-	beq	Ltail0
-Lloop4:
-	move.l	d0,(a0)+
-	subi.l	#4,d2
-	bne	Lloop4
-Ltail0:
-	btst	#1,d1
-	beq	Ltail1
-	move.w	d0,(a0)+
-Ltail1:
-	btst	#0,d1
-	beq	Ltail2
-	move.b	d0,(a0)+
-Ltail2:
-	rts
-
-; spinloop
-; d0: number of cycles
-spin:
-	subi.l	#1,d0
-	bne	spin
-	rts
-
 ; draw ball
 ; d0.w: x-coord -- left of ball
 ; d1.w: y-coord -- top of ball
 ; clobbers: a0
 ball:
 	movea.w	d0,a0
-	adda.l	#ea_texa1,a0
-	mulu.w	#tx1_w,d1
+	adda.l	#ea_texa0,a0
+	mulu.w	#tx0_w,d1
 	adda.l	d1,a0
 	move.b	#$f,(a0)
 	rts
@@ -137,16 +107,19 @@ paddle:
 	moveq	#0,d0
 	bra	max_done
 min_done:
-	cmpi.w	#tx1_w-paddlen,d0
+	cmpi.w	#tx0_w-paddlen,d0
 	ble	max_done
-	moveq	#tx1_w-paddlen,d0
+	moveq	#tx0_w-paddlen,d0
 max_done:
 	movea.w	d0,a0
-	adda.l	#ea_texa1+tx1_w*padd_y,a0
+	adda.l	#ea_texa0+tx0_w*padd_y,a0
 	move.l	#$41414141,d0
 	moveq.l	#paddlen,d1
-	jsr	memset
+	jsr	memset1
 	rts
+
+	include "util.inc"
+	include "memset.inc"
 
 	align 2
 pattern:
