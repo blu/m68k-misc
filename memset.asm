@@ -1,7 +1,11 @@
+	if alt_plat == 0
+	include	"plat_a2560u.inc"
+	else
 	include "plat_a2560k.inc"
+	endif
 
-tx0_w	equ 72
-tx0_h	equ 56
+tx0_w	equ 80
+tx0_h	equ 60
 
 tx1_w	equ 80
 tx1_h	equ 60
@@ -15,6 +19,7 @@ spins	equ $10000
 memset	equ memset8
 	endif
 
+	ifd do_morfe
 	; we want absolute addresses -- with moto/vasm that means
 	; just use org; don't use sections as they cause resetting
 	; of the current offset for generation of relocatable code
@@ -26,16 +31,33 @@ memset	equ memset8
 	move.l	a1,usp
 	andi.w	#$dfff,sr
 
-	; plot graph paper on channel B -- symbols
+	else
+	; FoenixMCP PGX header
+	org $010000
+
+	dc.b "PGX", $02
+	dc.l start
+start:
+	endif
+	; hide border and cursor
+	movea.l	#ea_vicky,a0
+	move.l	hw_vicky_border(a0),d0
+	move.l	hw_vicky_cursor(a0),d1
+	and.b	#reset_border_enable,d0
+	move.l	d0,hw_vicky_border(a0)
+	and.b	#reset_cursor_enable,d1
+	move.l	d1,hw_vicky_cursor(a0)
+
+	; plot graph paper on channel A -- symbols
 	lea.l	pattern,a0
-	jsr	clear_text1
+	jsr	clear_text0
 .again:
 	move.b	#18,d5
-	movea.l	#ea_texa1,a3
+	movea.l	#ea_texa0,a3
 .forward:
-	; plot graph paper on channel B -- colors
+	; plot graph paper on channel A -- colors
 	lea.l	pattern+4*4,a0
-	jsr	clear_texa1
+	jsr	clear_texa0
 
 	jsr	frame
 	adda.l	#1,a3
@@ -45,9 +67,9 @@ memset	equ memset8
 
 	move.b	#18,d5
 .reverse:
-	; plot graph paper on channel B -- colors
+	; plot graph paper on channel A -- colors
 	lea.l	pattern+4*4,a0
-	jsr	clear_texa1
+	jsr	clear_texa0
 
 	suba.l	#1,a3
 	jsr	frame
@@ -251,12 +273,12 @@ memset16:
 
 	einline
 
-; plot one memset test frame on channel B
+; plot one memset test frame on channel A
 ; a3: where to start the plot
 ; clobbers: d0-d4,a0-a2
 frame:
 	movea.l	a3,a1
-	movea.l	#ea_texa1+tx1_w*LINES,a2
+	movea.l	#ea_texa0+tx0_w*LINES,a2
 	moveq	#1,d3
 	moveq	#1,d4
 .line:
@@ -273,14 +295,14 @@ frame:
 	addi.w	#1,d3
 	addi.w	#1,d4
 
-	adda.w	#tx1_w,a1
+	adda.w	#tx0_w,a1
 	cmpa.l	a2,a1
 	blt	.line
 
 	move.w	frame_i,d0
 	addi.w	#1,d0
 	move.w	d0,frame_i
-	movea.l	#ea_text1+tx1_w-4,a0
+	movea.l	#ea_text0+tx0_w-4,a0
 	jsr	print_u16
 
 	ifd do_wait

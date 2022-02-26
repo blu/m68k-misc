@@ -1,4 +1,6 @@
 ; control symbols:
+; alt_plat (numerical): 0 : a2560u
+;                       1 : a2560k
 ; ea_text0 (address): channel A text
 ; ea_texa0 (address): channel A attr
 ; ea_text1 (address): channel B text
@@ -42,6 +44,8 @@ clear_texa0:
 
 	einline
 
+	if alt_plat == 1
+
 	inline
 ; clear tx1-sized text channel B
 ; a0: pattern ptr
@@ -75,6 +79,8 @@ clear_texa1:
 	rts
 
 	einline
+
+	endif
 
 	inline
 ; produce ascii from word
