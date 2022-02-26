@@ -11,6 +11,7 @@
 ; do_clear (define): enforce fb clear at start of frame
 ; do_fill (define): enforce filled tri mode
 ; do_persp (define): enforce perspective projection
+; do_morfe (define): enforce morfe compatibility
 ; alt_memset (numerical, optional): select memset routine for use by tri routine
 
 	ifnd alt_memset
@@ -20,7 +21,12 @@ alt_memset equ 1
 	fail "alt_memset must be power-of-two between 1 and 16"
 	endif
 
+	if alt_plat == 0
+	include	"plat_a2560u.inc"
+	else
 	include "plat_a2560k.inc"
+	endif
+
 	include "memset_inl.inc"
 
 tx0_w	equ 100
@@ -34,6 +40,7 @@ fb_h	equ tx0_h
 
 spins	equ $8000
 
+	ifd do_morfe
 	; we want absolute addresses -- with moto/vasm that means
 	; just use org; don't use sections as they cause resetting
 	; of the current offset for generation of relocatable code
@@ -45,6 +52,14 @@ spins	equ $8000
 	move.l	a1,usp
 	andi.w	#$dfff,sr
 
+	else
+	; FoenixMCP PGX header
+	org $10000
+
+	dc.b "PGX", $02
+	dc.l start
+start:
+	endif
 	; set channel A to 800x600, text 100x75 fb (8x8 char matrix)
 	movea.l	#ea_vicky,a0
 	move.l	hw_vicky_master(a0),d0
