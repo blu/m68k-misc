@@ -1,3 +1,23 @@
+; control symbols:
+; target_cpu (numerical): select target cpu
+;	0: 68000
+;	1: 68010
+;	2: 68020
+; 	3: 68030
+;	4: 68040
+;	6: 68060
+; do_wait (define): enforce spinloop at end of frame
+; do_clear (define): enforce fb clear at start of frame
+; do_morfe (define): enforce morfe compatibility
+; alt_memset (numerical, optional): select memset routine for use by paddle routine
+
+	ifnd alt_memset
+alt_memset equ 1
+	endif
+	if alt_memset < 1 || alt_memset > 16 || (alt_memset & (alt_memset - 1))
+	fail "alt_memset must be power-of-two between 1 and 16"
+	endif
+
 	if alt_plat == 0
 	include	"plat_a2560u.inc"
 	else
@@ -18,24 +38,25 @@ ball_h	equ 1
 
 spins	equ $8000
 
-	ifd do_morfe
 	; we want absolute addresses -- with moto/vasm that means
 	; just use org; don't use sections as they cause resetting
 	; of the current offset for generation of relocatable code
-	org	ea_user
+
+	ifd do_morfe
+	org	$020000
 
 	; we get injected right into supervisor mode, interrupt-style
 	; demote ourselves to user mode
-	movea.l	#ea_stack,a1
-	move.l	a1,usp
+	movea.l	#$080000,a0
+	move.l	a0,usp
 	andi.w	#$dfff,sr
 
 	else
 	; FoenixMCP PGX header
-	org $10000
+	org	$010000
 
-	dc.b "PGX", $02
-	dc.l start
+	dc.b	"PGX", $02
+	dc.l	start
 start:
 	endif
 	; hide border and cursor
@@ -47,12 +68,17 @@ start:
 	and.b	#reset_cursor_enable,d1
 	move.l	d1,hw_vicky_cursor(a0)
 
+	ifd do_clear
+	lea.l	pattern,a0
+	jsr	clear_text0
+	endif
+
 	moveq	#tx0_w/2,d4  ; curr_x
 	moveq	#padd_y-1,d5 ; curr_y
 	moveq	#-1,d6       ; step_x
 	moveq   #-1,d7       ; step_y
 frame:
-	lea.l	pattern,a0
+	lea.l	pattern+4*4,a0
 	jsr	clear_texa0
 
 	move.w	d4,d0
@@ -77,8 +103,10 @@ done_x:
 neg_step_y:
 	neg.w	d7
 done_y:
+	ifd do_wait
 	move.l	#spins,d0
 	jsr	spin
+	endif
 
 	bra	frame
 
@@ -123,4 +151,5 @@ max_done:
 
 	align 2
 pattern:
+	dcb.l	4, '    '
 	dcb.l	4, $42434243

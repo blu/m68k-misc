@@ -19,24 +19,25 @@ spins	equ $10000
 memset	equ memset8
 	endif
 
-	ifd do_morfe
 	; we want absolute addresses -- with moto/vasm that means
 	; just use org; don't use sections as they cause resetting
 	; of the current offset for generation of relocatable code
-	org	ea_user
+
+	ifd do_morfe
+	org	$020000
 
 	; we get injected right into supervisor mode, interrupt-style
 	; demote ourselves to user mode
-	movea.l	#ea_stack,a1
-	move.l	a1,usp
+	movea.l	#$080000,a0
+	move.l	a0,usp
 	andi.w	#$dfff,sr
 
 	else
 	; FoenixMCP PGX header
-	org $10000
+	org	$010000
 
-	dc.b "PGX", $02
-	dc.l start
+	dc.b	"PGX", $02
+	dc.l	start
 start:
 	endif
 	; hide border and cursor

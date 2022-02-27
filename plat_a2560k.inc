@@ -1,6 +1,4 @@
 ; platform A2560K
-ea_user  equ $020000
-ea_stack equ $080000
 ea_vicky equ $c40000
 ea_text0 equ $c60000
 ea_texa0 equ $c68000
