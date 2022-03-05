@@ -28,6 +28,8 @@ alt_memset equ 1
 
 	include "memset_inl.inc"
 
+ea_bfb	equ $3fc000
+
 tx0_w	equ 100
 tx0_h	equ 75
 
@@ -36,8 +38,6 @@ tx1_h	equ 60
 
 fb_w	equ tx0_w
 fb_h	equ tx0_h
-
-spins	equ $2800 ; tuning for A2560U, wireframe drawing
 
 	; we want absolute addresses -- with moto/vasm that means
 	; just use org; don't use sections as they cause resetting
@@ -293,12 +293,6 @@ start:
 	bcs	.vert
 
 	ifd do_clear
-	; it's not vblank yet, we need to race the beam (tm)
-	move.l	#spins,d0
-.spin:
-	subi.l	#1,d0
-	bne	.spin
-
 	; clear channel A -- colors
 	move.l	#$70707070,d0
 	move.l	d0,d1
@@ -308,7 +302,7 @@ start:
 	move.l	d0,d5
 	move.l	d0,d6
 	move.l	d0,d7
-	movea.l	#ea_texa0,a0
+	movea.l	#ea_bfb,a0
 	lea	(tx0_w*tx0_h)&~31(a0),a1
 .loop:
 	movem.l	d0-d7,-(a1)
@@ -316,13 +310,7 @@ start:
 	bne	.loop
 	endif
 
-	; we're about to draw -- wait for vblank
-.vsync_spin:
-	tst.b	flag_sof
-	beq	.vsync_spin
-	move.b	#0,flag_sof
-
-	movea.l	#ea_texa0,a4
+	movea.l	#ea_bfb,a4
 	lea	tri_obj_0,a5
 	lea	tri_idx_0,a6
 	move.b	#$40,color
@@ -414,6 +402,56 @@ start:
 	cmpa.l	a5,a6
 	bne	.tri
 
+	; about to present -- wait for vblank
+	; note: as we don't rely on any indication for
+	; vblank end, our current scheme works iff our
+	; frame time does not exceed our sink frame period;
+	; if there's no such guarantee the SOF callback
+	; should carry the presentation when frame is ready
+.vsync_spin:
+	tst.b	flag_sof
+	beq	.vsync_spin
+	move.b	#0,flag_sof
+
+	; copy back-fb content to front-fb -- tx0
+	movea.l	#ea_bfb+(tx0_h*tx0_w)&~31,a0
+	movea.l #ea_texa0,a1
+	lea	(tx0_h*tx0_w)&~31(a1),a2
+.loopp:
+	if 0
+	move.l	-(a0),d7
+	move.l	-(a0),d6
+	move.l	-(a0),d5
+	move.l	-(a0),d4
+	move.l	-(a0),d3
+	move.l	-(a0),d2
+	move.l	-(a0),d1
+	move.l	-(a0),d0
+	movem.l	d0-d7,-(a2)
+	else
+	; swap byte order in each word
+	move.w	-(a0),d7
+	move.w	-(a0),d6
+	move.w	-(a0),d5
+	move.w	-(a0),d4
+	move.w	-(a0),d3
+	move.w	-(a0),d2
+	move.w	-(a0),d1
+	move.w	-(a0),d0
+	rol.w	#8,d7
+	rol.w	#8,d6
+	rol.w	#8,d5
+	rol.w	#8,d4
+	rol.w	#8,d3
+	rol.w	#8,d2
+	rol.w	#8,d1
+	rol.w	#8,d0
+	movem.w	d0-d7,-(a2)
+	endif
+	cmpa.l	a1,a2
+	bne	.loopp
+
+	; update animation param and print frame idx
 	addi.w	#1,angle
 	move.w	frame_i,d0
 	addi.w	#1,d0
