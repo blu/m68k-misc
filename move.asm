@@ -6,7 +6,6 @@
 ; 	3: 68030
 ;	4: 68040
 ;	6: 68060
-; do_wait (define): enforce spinloop at end of frame
 ; do_clear (define): enforce fb clear at start of frame
 ; do_morfe (define): enforce morfe compatibility
 ; alt_memset (numerical, optional): select memset routine for use by paddle routine
@@ -36,7 +35,7 @@ padd_y	equ tx0_h-3
 ball_w	equ 1
 ball_h	equ 1
 
-spins	equ $8000
+frames	equ 1<<12
 
 	; we want absolute addresses -- with moto/vasm that means
 	; just use org; don't use sections as they cause resetting
@@ -59,25 +58,52 @@ spins	equ $8000
 	dc.l	start
 start:
 	endif
-	; hide border and cursor
+	; disable all vicky engines but text
 	movea.l	#ea_vicky,a0
+	move.l	hw_vicky_master(a0),d0
+	andi.b	#%01000001,d0
+	move.l	d0,hw_vicky_master(a0)
+	; hide border and cursor
 	move.l	hw_vicky_border(a0),d0
-	move.l	hw_vicky_cursor(a0),d1
-	and.b	#reset_border_enable,d0
+	andi.b	#reset_border_enable,d0
 	move.l	d0,hw_vicky_border(a0)
-	and.b	#reset_cursor_enable,d1
-	move.l	d1,hw_vicky_cursor(a0)
+	move.l	hw_vicky_cursor(a0),d0
+	andi.b	#reset_cursor_enable,d0
+	move.l	d0,hw_vicky_cursor(a0)
+
+	; disable all group0 interrupts
+	rept	8
+	moveq	#4,d0 ; syscall_int_disable
+	moveq	#REPTN,d1
+	trap	#15
+	endr
+
+	moveq	#2,d0 ; syscall_int_register
+	moveq	#0,d1 ; INT_SOF_A
+	move.l	#hnd_sof,d2
+	trap	#15
+	move.l	d0,orig_hnd_sof
+
+	; enable SOF interrupt
+	moveq	#3,d0 ; syscall_int_enable
+	moveq	#0,d1
+	trap	#15
 
 	ifd do_clear
 	lea.l	pattern,a0
 	jsr	clear_text0
 	endif
 
+	; frame state
 	moveq	#tx0_w/2,d4  ; curr_x
 	moveq	#padd_y-1,d5 ; curr_y
 	moveq	#-1,d6       ; step_x
 	moveq   #-1,d7       ; step_y
 frame:
+	tst.b	flag_sof
+	beq	frame
+	move.b	#0,flag_sof
+
 	lea.l	pattern+4*4,a0
 	jsr	clear_texa0
 
@@ -103,17 +129,33 @@ done_x:
 neg_step_y:
 	neg.w	d7
 done_y:
-	ifd do_wait
-	move.l	#spins,d0
-	jsr	spin
-	endif
+	move.w	frame_i,d0
+	addi.w	#1,d0
+	move.w	d0,frame_i
+	movea.l	#ea_text0+tx0_w-4,a0
+	jsr	print_u16
 
-	bra	frame
+	cmpi.w	#frames,d0
+	bne	frame
 
-	; some day
-	moveq	#0,d0 ; syscall_exit
+	moveq	#2,d0 ; syscall_int_register
+	moveq	#0,d1 ; INT_SOF_A
+	move.l	orig_hnd_sof,d2
 	trap	#15
 
+	moveq	#0,d0 ; syscall_exit
+	trap	#15
+hnd_sof:
+	move.b	#1,flag_sof
+	rts
+orig_hnd_sof:
+	ds.l	1
+frame_i:
+	dc.w	0
+flag_sof:
+	dc.b	0
+
+	align	1
 ; draw ball
 ; d0.w: x-coord -- left of ball
 ; d1.w: y-coord -- top of ball

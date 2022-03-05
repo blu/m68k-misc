@@ -17,12 +17,11 @@
 clear_text0:
 	movem.l	(a0),d0-d3
 	movea.l	#ea_text0,a0
-	lea	tx0_w*tx0_h(a0),a1
+	lea	(tx0_w*tx0_h)&~15(a0),a1
 .loop:
-	movem.l	d0-d3,(a0)
-	adda.w	#4*4,a0
-	cmpa.l	a1,a0
-	blt	.loop
+	movem.l	d0-d3,-(a1)
+	cmpa.l	a0,a1
+	bne	.loop
 	rts
 
 	einline
@@ -34,12 +33,11 @@ clear_text0:
 clear_texa0:
 	movem.l (a0),d0-d3
 	movea.l	#ea_texa0,a0
-	lea	tx0_w*tx0_h(a0),a1
+	lea	(tx0_w*tx0_h)&~15(a0),a1
 .loop:
-	movem.l	d0-d3,(a0)
-	adda.w	#4*4,a0
-	cmpa.l	a1,a0
-	blt	.loop
+	movem.l	d0-d3,-(a1)
+	cmpa.l	a0,a1
+	bne	.loop
 	rts
 
 	einline
@@ -53,12 +51,11 @@ clear_texa0:
 clear_text1:
 	movem.l	(a0),d0-d3
 	movea.l	#ea_text1,a0
-	lea	tx1_w*tx1_h(a0),a1
+	lea	(tx1_w*tx1_h)&~15(a0),a1
 .loop:
-	movem.l	d0-d3,(a0)
-	adda.w	#4*4,a0
-	cmpa.l	a1,a0
-	blt	.loop
+	movem.l	d0-d3,-(a1)
+	cmpa.l	a0,a1
+	bne	.loop
 	rts
 
 	einline
@@ -70,12 +67,11 @@ clear_text1:
 clear_texa1:
 	movem.l (a0),d0-d3
 	movea.l	#ea_texa1,a0
-	lea	tx1_w*tx1_h(a0),a1
+	lea	(tx1_w*tx1_h)&~15(a0),a1
 .loop:
-	movem.l	d0-d3,(a0)
-	adda.w	#4*4,a0
-	cmpa.l	a1,a0
-	blt	.loop
+	movem.l	d0-d3,-(a1)
+	cmpa.l	a0,a1
+	bne	.loop
 	rts
 
 	einline

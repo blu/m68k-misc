@@ -7,7 +7,6 @@
 ;	4: 68040
 ;	6: 68060
 ; do_clip (define): enforce clipping in primitives
-; do_wait (define): enforce spinloop at end of frame
 ; do_clear (define): enforce fb clear at start of frame
 ; do_fill (define): enforce filled tri mode
 ; do_persp (define): enforce perspective projection
@@ -38,7 +37,7 @@ tx1_h	equ 60
 fb_w	equ tx0_w
 fb_h	equ tx0_h
 
-spins	equ $8000
+spins	equ $2800 ; tuning for A2560U, wireframe drawing
 
 	; we want absolute addresses -- with moto/vasm that means
 	; just use org; don't use sections as they cause resetting
@@ -61,18 +60,39 @@ spins	equ $8000
 	dc.l	start
 start:
 	endif
-	; set channel A to 800x600, text 100x75 fb (8x8 char matrix)
+	; disable all vicky engines but text and
+	; set channel A to 800x600, text 100x75
 	movea.l	#ea_vicky,a0
 	move.l	hw_vicky_master(a0),d0
-	move.l	hw_vicky_border(a0),d1
-	move.l	hw_vicky_cursor(a0),d2
-	and.w	#$ffff&reset_master_mode,d0
+	and.w	#$ffff&(reset_master_mode|%01000001),d0
 	or.w	#set_master_mode_800x600,d0
 	move.l	d0,hw_vicky_master(a0)
-	and.b	#reset_border_enable,d1
-	move.l	d1,hw_vicky_border(a0)
-	and.b	#reset_cursor_enable,d2
-	move.l	d2,hw_vicky_cursor(a0)
+	; hide border and cursor
+	move.l	hw_vicky_border(a0),d0
+	and.b	#reset_border_enable,d0
+	move.l	d0,hw_vicky_border(a0)
+	move.l	hw_vicky_cursor(a0),d0
+	and.b	#reset_cursor_enable,d0
+	move.l	d0,hw_vicky_cursor(a0)
+
+	; disable all group0 interrupts (yes, that's lame)
+	rept	8
+	moveq	#4,d0 ; syscall_int_disable
+	moveq	#REPTN,d1
+	trap	#15
+	endr
+
+	; register SOF callback
+	moveq	#2,d0 ; syscall_int_register
+	moveq	#0,d1 ; INT_SOF_A
+	move.l	#hnd_sof,d2
+	trap	#15
+	move.l	d0,orig_hnd_sof
+
+	; enable SOF interrupt
+	moveq	#3,d0 ; syscall_int_enable
+	moveq	#0,d1
+	trap	#15
 
 	; pre-bake non-per-frame transforms to obj-space
 	lea	sinLUT14,a6
@@ -137,12 +157,6 @@ start:
 	lea.l	pattern,a0
 	jsr	clear_text0
 .frame:
-	ifd do_clear
-	; clear channel A -- colors
-	lea.l	pattern+4*4,a0
-	jsr	clear_texa0
-	endif
-
 	; compute scr coords from obj-space coords
 	lea	sinLUT14,a6
 
@@ -278,6 +292,36 @@ start:
 	cmpa.l	a6,a4
 	bcs	.vert
 
+	ifd do_clear
+	; it's not vblank yet, we need to race the beam (tm)
+	move.l	#spins,d0
+.spin:
+	subi.l	#1,d0
+	bne	.spin
+
+	; clear channel A -- colors
+	move.l	#$70707070,d0
+	move.l	d0,d1
+	move.l	d0,d2
+	move.l	d0,d3
+	move.l	d0,d4
+	move.l	d0,d5
+	move.l	d0,d6
+	move.l	d0,d7
+	movea.l	#ea_texa0,a0
+	lea	(tx0_w*tx0_h)&~31(a0),a1
+.loop:
+	movem.l	d0-d7,-(a1)
+	cmpa.l	a0,a1
+	bne	.loop
+	endif
+
+	; we're about to draw -- wait for vblank
+.vsync_spin:
+	tst.b	flag_sof
+	beq	.vsync_spin
+	move.b	#0,flag_sof
+
 	movea.l	#ea_texa0,a4
 	lea	tri_obj_0,a5
 	lea	tri_idx_0,a6
@@ -374,19 +418,18 @@ start:
 	move.w	frame_i,d0
 	addi.w	#1,d0
 	move.w	d0,frame_i
-	movea.l	#ea_text0+tx0_w-4,a0
+	movea.l	#ea_text0+tx0_h*tx0_w-4,a0
 	jsr	print_u16
-
-	ifd do_wait
-	move.l	#spins,d0
-	jsr	spin
-	endif
 
 	bra	.frame
 
 	; some day
 	moveq	#0,d0 ; syscall_exit
 	trap	#15
+
+hnd_sof: ; SOF callback (dispatched by IRQ handler)
+	move.b	#1,flag_sof
+	rts
 
 ; struct r2
 	clrso
@@ -1275,9 +1318,10 @@ delim_max:
 	include "util.inc"
 	include "line.inc"
 
+orig_hnd_sof:
+	ds.l	1
 pattern: ; fb clear pattern
 	dcb.l	4, '    '
-	dcb.l	4, $70707070
 color:	; primitive color (1B splatted to 4B)
 	ds.b	4
 pb:	; parallelogram basis
@@ -1289,6 +1333,8 @@ roto:	; rotation matrix
 	ds.w	mat_size/2
 frame_i: ; frame index
 	dc.w	0
+flag_sof:
+	dc.b	0
 
 	align 4
 sinLUT14:
