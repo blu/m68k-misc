@@ -57,8 +57,8 @@ fb_h	equ tx0_h
 	org	$10000
 
 	dc.b	"PGX", $02
-	dc.l	start
-start:
+	dc.l	.start
+.start:
 	endif
 	; disable all vicky engines but text and
 	; set channel A to 800x600, text 100x75

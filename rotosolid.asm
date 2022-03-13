@@ -11,6 +11,7 @@
 ; do_clear (define): enforce fb clear at start of frame
 ; do_fill (define): enforce filled tri mode
 ; do_persp (define): enforce perspective projection
+; do_fxmath (define); enforce use of fxmath copro (a2560u-only)
 ; do_morfe (define): enforce morfe compatibility
 
 	if alt_plat == 0
@@ -30,6 +31,13 @@ fb_h	equ tx0_h
 
 spins	equ $8000
 
+	ifd do_fxmath
+	if alt_plat != 0
+	fail "do_fxmath currently only for a2560u"
+	endif
+mulbase equ $b03000
+	endif
+
 	; we want absolute addresses -- with moto/vasm that means
 	; just use org; don't use sections as they cause resetting
 	; of the current offset for generation of relocatable code
@@ -48,8 +56,8 @@ spins	equ $8000
 	org	$10000
 
 	dc.b	"PGX", $02
-	dc.l	start
-start:
+	dc.l	.start
+.start:
 	endif
 	; set channel A to 800x600, text 100x75 fb (8x8 char matrix)
 	movea.l	#ea_vicky,a0
@@ -352,7 +360,7 @@ start:
 	endif
 
 	bra	.frame
-
+.exit:
 	; some day
 	moveq	#0,d0 ; syscall_exit
 	trap	#15
@@ -621,6 +629,8 @@ init_pb:
 ; a0: basis ptr
 ; d0.w: pt.x
 ; d1.w: pt.y
+; do_fxmath:
+; a3: fxmath mul reg base
 ; returns: d0.l: s coord before normalization
 ;          d1.l: t coord before normalization
 ; clobbers: d2-d3
@@ -631,12 +641,48 @@ get_coord:
 	sub.w	pb_p0+r2_y(a0),d1
 	; s = dx * pb.e02.y - dy * pb.e02.x
 	; t = dy * pb.e01.x - dx * pb.e01.y
+	ifd do_fxmath
+	ext.l	d0
+	ext.l	d1
+
+	move.l	d1,(a3)+ ; mul_opA
+
+	move.w	pb_e01+r2_x(a0),d1 ; dy * e01.x
+	ext.l	d1
+	move.l	d1,(a3)+ ; mul_opB
+	move.l	(a3),d1  ; mul_resL
+
+	subq.l	#4,a3
+
+	move.w	pb_e02+r2_x(a0),d3 ; dy * e02.x
+	ext.l	d3
+	move.l	d3,(a3)+ ; mul_opB
+	move.l	(a3),d3  ; mul_resL
+
+	subq.l	#8,a3
+	move.l	d0,(a3)+
+
+	move.w	pb_e01+r2_y(a0),d2 ; dx * e01.y
+	ext.l	d2
+	move.l	d2,(a3)+ ; mul_opB
+	move.l	(a3),d2  ; mul_resL
+
+	subq.l	#4,a3
+
+	move.w	pb_e02+r2_y(a0),d0 ; dx * e02.y
+	ext.l	d0
+	move.l	d0,(a3)+ ; mul_opB
+	move.l	(a3),d0  ; mul_resL
+
+	subq.l	#8,a3
+	else
 	move.w	d0,d2
 	move.w	d1,d3
 	muls.w	pb_e01+r2_x(a0),d1 ; dy * e01.x
 	muls.w	pb_e01+r2_y(a0),d2 ; dx * e01.y
 	muls.w	pb_e02+r2_x(a0),d3 ; dy * e02.x
 	muls.w	pb_e02+r2_y(a0),d0 ; dx * e02.y
+	endif
 	sub.l	d3,d0
 	sub.l	d2,d1
 	rts
@@ -737,6 +783,9 @@ tri:
 	rts
 .valid_y:
 	movea.l	a1,a2
+	ifd do_fxmath
+	movea.l	#mulbase,a3
+	endif
 
 	move.w	#tx0_w,d0
 	mulu.w	d5,d0
