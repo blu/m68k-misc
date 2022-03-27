@@ -418,40 +418,19 @@ fb_h	equ tx0_h
 	endif
 
 	; copy back-fb content to front-fb -- tx0
-	movea.l	#ea_bfb+(tx0_h*tx0_w)&~31,a0
+	movea.l	#ea_bfb,a0
 	movea.l #ea_texa0,a1
 	lea	(tx0_h*tx0_w)&~31(a1),a2
 .loopp:
-	if 0
-	move.l	-(a0),d7
-	move.l	-(a0),d6
-	move.l	-(a0),d5
-	move.l	-(a0),d4
-	move.l	-(a0),d3
-	move.l	-(a0),d2
-	move.l	-(a0),d1
-	move.l	-(a0),d0
-	movem.l	d0-d7,-(a2)
-	else
-	; swap byte order in each word
-	move.w	-(a0),d7
-	move.w	-(a0),d6
-	move.w	-(a0),d5
-	move.w	-(a0),d4
-	move.w	-(a0),d3
-	move.w	-(a0),d2
-	move.w	-(a0),d1
-	move.w	-(a0),d0
-	rol.w	#8,d7
-	rol.w	#8,d6
-	rol.w	#8,d5
-	rol.w	#8,d4
-	rol.w	#8,d3
-	rol.w	#8,d2
-	rol.w	#8,d1
-	rol.w	#8,d0
-	movem.w	d0-d7,-(a2)
-	endif
+	movem.l	(a0)+,d0-d7
+	move.l	d0,(a1)+
+	move.l	d1,(a1)+
+	move.l	d2,(a1)+
+	move.l	d3,(a1)+
+	move.l	d4,(a1)+
+	move.l	d5,(a1)+
+	move.l	d6,(a1)+
+	move.l	d7,(a1)+
 	cmpa.l	a1,a2
 	bne	.loopp
 
