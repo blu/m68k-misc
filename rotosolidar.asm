@@ -75,6 +75,7 @@ fb_h	equ tx0_h
 	and.b	#reset_cursor_enable,d0
 	move.l	d0,hw_vicky_cursor(a0)
 
+	ifnd do_morfe
 	; disable all group0 interrupts (yes, that's lame)
 	rept	8
 	moveq	#4,d0 ; syscall_int_disable
@@ -93,6 +94,7 @@ fb_h	equ tx0_h
 	moveq	#3,d0 ; syscall_int_enable
 	moveq	#0,d1
 	trap	#15
+	endif
 
 	; pre-bake non-per-frame transforms to obj-space
 	lea	sinLUT14,a6
@@ -402,6 +404,7 @@ fb_h	equ tx0_h
 	cmpa.l	a5,a6
 	bne	.tri
 
+	ifnd do_morfe
 	; about to present -- wait for vblank
 	; note: as we don't rely on any indication for
 	; vblank end, our current scheme works iff our
@@ -412,6 +415,7 @@ fb_h	equ tx0_h
 	tst.b	flag_sof
 	beq	.vsync_spin
 	move.b	#0,flag_sof
+	endif
 
 	; copy back-fb content to front-fb -- tx0
 	movea.l	#ea_bfb+(tx0_h*tx0_w)&~31,a0
@@ -842,24 +846,20 @@ tri:
 	bge	.valid_y
 	rts
 .valid_y:
-	; if p0.y > 0 then translate tri to y = 0
-	tst.w	d1
-	ble	.at0
-	sub.w	d1,d5
-	sub.w	d1,d3
-	moveq	#0,d1
-.at0:
-	; alloca x-delimiter array of size max.y - min.y + 1
-	sub.w	d6,d7
+	; alloca x-delimiter array of size max.y + 1
 	neg.w	d7
 	if target_cpu >= 2
 	lea	-4(sp,d7.w*4),a2
+	lea	(a2,d6.w*4),a3
 	else
 	add.w	d7,d7
 	add.w	d7,d7
 	lea	-4(sp,d7.w),a2
+	move.w	d6,d7
+	add.w	d7,d7
+	add.w	d7,d7
+	lea	(a2,d7.w),a3
 	endif
-	movea.l	a2,a3
 	exg.l	a2,sp
 	if target_cpu >= 2
 	; save tri verts followed by scan min.y and a dummy word for 4B-alignment
@@ -1105,9 +1105,16 @@ l_dap	equ 18 ; delim arr ptr
 .fill:
 	; fill the delimited span of each line of the scan box
 	move.w	l_sy0(sp),d2 ; scan.y0
+	if target_cpu >= 2
+	lea	l_dap(sp,d2.w*4),a3
+	else
+	move.w	d2,d0
+	add.w	d0,d0
+	add.w	d0,d0
+	lea	l_dap(sp,d0.w),a3
+	endif
 	mulu.w	#fb_w,d2
 	adda.l	d2,a1
-	lea	l_dap(sp),a3
 	if alt_memset == 1
 	move.b	color,d3
 	endif
@@ -1399,6 +1406,17 @@ tri_idx_0:
 	dc.w	7*r3_size, 5*r3_size, 2*r3_size
 	dc.w	2*r3_size, 5*r3_size, 0*r3_size
 tri_obj_0:
+	ifd do_clip
+	dc.w	-27, -27,  27
+	dc.w	 27, -27,  27
+	dc.w	-27,  27,  27
+	dc.w	 27,  27,  27
+
+	dc.w	 27, -27, -27
+	dc.w	-27, -27, -27
+	dc.w	 27,  27, -27
+	dc.w	-27,  27, -27
+	else
 	dc.w	-25, -25,  25
 	dc.w	 25, -25,  25
 	dc.w	-25,  25,  25
@@ -1408,5 +1426,6 @@ tri_obj_0:
 	dc.w	-25, -25, -25
 	dc.w	 25,  25, -25
 	dc.w	-25,  25, -25
+	endif
 tri_scr_0:
 	ds.w	(tri_scr_0-tri_obj_0)/2
