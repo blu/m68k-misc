@@ -305,7 +305,7 @@ fb_h	equ tx0_h
 	move.l	d0,d6
 	move.l	d0,d7
 	movea.l	#ea_bfb,a0
-	lea	(tx0_w*tx0_h)&~31(a0),a1
+	lea	(fb_w*fb_h)&~31(a0),a1
 .loop:
 	movem.l	d0-d7,-(a1)
 	cmpa.l	a0,a1

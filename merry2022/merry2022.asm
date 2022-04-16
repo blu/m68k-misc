@@ -7,7 +7,6 @@
 ;	4: 68040
 ;	6: 68060
 ; do_clip (define): enforce clipping in primitives
-; do_wait (define): enforce spinloop at end of frame
 ; do_morfe (define): enforce morfe compatibility
 
 	if alt_plat == 0
@@ -16,18 +15,21 @@
 	include "plat_a2560k.inc"
 	endif
 
+ea_bfb	equ $3fc000
+
 tx0_w	equ 100
 tx0_h	equ 75
 
 tx1_w	equ 80
 tx1_h	equ 60
 
+fb_w	equ tx0_w
+fb_h	equ tx0_h
+
 quelen	equ 8
 questep	equ 4
 
 fract	equ 15
-
-spins	equ $8000
 
 	; we want absolute addresses -- with moto/vasm that means
 	; just use org; don't use sections as they cause resetting
@@ -47,8 +49,8 @@ spins	equ $8000
 	org	$10000
 
 	dc.b	"PGX", $02
-	dc.l	start
-start:
+	dc.l	.start
+.start:
 	endif
 	; set channel A to 800x600, text 100x75 fb (8x8 char matrix)
 	movea.l	#ea_vicky,a0
@@ -62,6 +64,27 @@ start:
 	move.l	d1,hw_vicky_border(a0)
 	and.b	#reset_cursor_enable,d2
 	move.l	d2,hw_vicky_cursor(a0)
+
+	ifnd do_morfe
+	; disable all group0 interrupts (yes, that's lame)
+	rept	8
+	moveq	#4,d0 ; syscall_int_disable
+	moveq	#REPTN,d1
+	trap	#15
+	endr
+
+	; register SOF callback
+	moveq	#2,d0 ; syscall_int_register
+	moveq	#0,d1 ; INT_SOF_A
+	move.l	#hnd_sof,d2
+	trap	#15
+	move.l	d0,orig_hnd_sof
+
+	; enable SOF interrupt
+	moveq	#3,d0 ; syscall_int_enable
+	moveq	#0,d1
+	trap	#15
+	endif
 
 	; set bg clut: $ggbb, $aarr
 	lea	clut,a0
@@ -77,13 +100,24 @@ start:
 	jsr	clear_text0
 
 	; frame constants
-	movea.l	#ea_text0,a4
-	movea.l	#ea_texa0,a5
+	movea.l	#ea_text0+tx0_h*tx0_w-4,a4
+	movea.l	#ea_bfb,a5
 	lea	sinLUT,a6
 .frame:
 	; clear channel A -- colors
-	lea.l	pattern+4*4,a0
-	jsr	clear_texa0
+	move.l	#$70707070,d0
+	move.l	d0,d1
+	move.l	d0,d2
+	move.l	d0,d3
+	move.l	d0,d4
+	move.l	d0,d5
+	move.l	d0,d6
+	move.l	d0,d7
+	lea	(fb_w*fb_h)&~31(a5),a1
+.loop:
+	movem.l	d0-d7,-(a1)
+	cmpa.l	a5,a1
+	bne	.loop
 
 	move.b	#quelen,queue
 .que:
@@ -125,7 +159,7 @@ start:
 	asr.l	d6,d2
 	addx.w	d7,d2
 
-	addi.w	#tx0_w/2,d2
+	addi.w	#fb_w/2,d2
 	move.w	d2,(a1)+ ; v_out.x
 
 	; transform vertex y-coord: sin * x + cos * y
@@ -143,7 +177,7 @@ start:
 	asr.l	d6,d2
 	addx.w	d7,d2
 
-	addi.w	#tx0_h/2,d2
+	addi.w	#fb_h/2,d2
 	move.w	d2,(a1)+ ; v_out.y
 
 	cmpa.l	a2,a0
@@ -194,31 +228,61 @@ start:
 	subi.b	#1,queue
 	bne	.que
 
-	lea	tx0_w*(tx0_h-30)+(tx0_w-64)/2(a5),a0
+	lea	fb_w*(fb_h-30)+(fb_w-64)/2(a5),a0
 	lea	cinq_end,a1
 	jsr	pixmap
 
 	btst.b	#7,frame_i+1
 	bne	.msg_alt
 
-	lea	tx0_w*(tx0_h-20)+(tx0_w-64)/2(a5),a0
+	lea	fb_w*(fb_h-20)+(fb_w-64)/2(a5),a0
 	lea	cinq_end+192,a1
 	jsr	pixmap
 	bra	.msg_done
 .msg_alt:
-	lea	tx0_w*(tx0_h-20)+(tx0_w-64)/2(a5),a0
+	lea	fb_w*(fb_h-20)+(fb_w-64)/2(a5),a0
 	lea	cinq_end+64,a1
 	jsr	pixmap
 
-	lea	tx0_w*(tx0_h-10)+(tx0_w-64)/2(a5),a0
+	lea	fb_w*(fb_h-10)+(fb_w-64)/2(a5),a0
 	lea	cinq_end+128,a1
 	jsr	pixmap
 .msg_done:
+	ifnd do_morfe
+	; about to present -- wait for vblank
+	; note: as we don't rely on any indication for
+	; vblank end, our current scheme works iff our
+	; frame time does not exceed our sink frame period;
+	; if there's no such guarantee the SOF callback
+	; should carry the presentation when frame is ready
+.vsync_spin:
+	tst.b	flag_sof
+	beq	.vsync_spin
+	move.b	#0,flag_sof
+	endif
+
+	; copy back-fb content to front-fb -- tx0
+	movea.l	#ea_bfb,a0
+	movea.l #ea_texa0,a1
+	lea	(tx0_h*tx0_w)&~31(a1),a2
+.loopp:
+	movem.l	(a0)+,d0-d7
+	move.l	d0,(a1)+
+	move.l	d1,(a1)+
+	move.l	d2,(a1)+
+	move.l	d3,(a1)+
+	move.l	d4,(a1)+
+	move.l	d5,(a1)+
+	move.l	d6,(a1)+
+	move.l	d7,(a1)+
+	cmpa.l	a1,a2
+	bne	.loopp
+
 	move.w	frame_i,d0
 	addi.w	#1,d0
 	move.w	d0,frame_i
 
-	lea	tx0_w-4(a4),a0
+	move.l	a4,a0
 	jsr	print_u16
 
 	move.w	d0,d1
@@ -235,16 +299,15 @@ start:
 	endr
 	add.w	d0,(a3)
 
-	ifd do_wait
-	move.l	#spins,d0
-	jsr	spin
-	endif
-
 	bra	.frame
 
 	; some day
 	moveq	#0,d0 ; syscall_exit
 	trap	#15
+
+hnd_sof: ; SOF callback (dispatched by IRQ handler)
+	move.b	#1,flag_sof
+	rts
 
 ; struct r2
 	clrso
@@ -317,7 +380,7 @@ mul_cos:
 line:
 	; compute x0,y0 addr in fb
 	move.w	d1,d4
-	muls.w	#tx0_w,d4
+	muls.w	#fb_w,d4
 	adda.l	d4,a0
 	adda.w	d0,a0
 
@@ -329,13 +392,13 @@ line:
 	neg.w	d6
 .dx_done:
 	moveq	#1,d7
-	movea.w	#tx0_w,a1
+	movea.w	#fb_w,a1
 	move.w	d3,d5
 	sub.w	d1,d5 ; dy
 	bge	.dy_done
 	neg.w	d5
 	neg.w	d7
-	movea.w	#-tx0_w,a1
+	movea.w	#-fb_w,a1
 .dy_done:
 	cmp.w	d4,d5
 	bge	.high_slope
@@ -347,9 +410,9 @@ line:
 	add.w	d4,d4 ; 2 dx
 .loop_x:
 	ifd do_clip
-	cmp.w	#tx0_w,d0
+	cmp.w	#fb_w,d0
 	bcc	.advance_x
-	cmp.w	#tx0_h,d1
+	cmp.w	#fb_h,d1
 	bcc	.advance_x
 	endif
 	move.b	queue,(a0)
@@ -373,9 +436,9 @@ line:
 	add.w	d5,d5 ; 2 dy
 .loop_y:
 	ifd do_clip
-	cmp.w	#tx0_w,d0
+	cmp.w	#fb_w,d0
 	bcc	.advance_y
-	cmp.w	#tx0_h,d1
+	cmp.w	#fb_h,d1
 	bcc	.advance_y
 	endif
 	move.b	queue,(a0)
@@ -419,13 +482,15 @@ pixmap:
 	move.l	d0,d2
 	and.w	#$38,d2
 	bne	.byte
-	adda.w	#tx0_w,a0
+	adda.w	#fb_w,a0
 	cmpa.l	a2,a1
 	bne	.row
 	rts
 
 	einline
 	include "util.inc"
+orig_hnd_sof:
+	ds.l	1
 pattern:
 	dcb.l	4, '    '
 	dcb.l	4, $70707070
@@ -442,6 +507,8 @@ angle:
 	dcb.w	quelen, -32
 frame_i:
 	dc.w	0
+flag_sof:
+	dc.b	0
 queue:
 	ds.b	1
 
