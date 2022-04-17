@@ -4,6 +4,7 @@ ea_text  equ $b60000
 ea_texa  equ $b68000
 ea_palfg equ $b6c400
 ea_palbg equ $b6c440
+ea_vram0 equ $c00000
 
 ea_text0 equ ea_text
 ea_texa0 equ ea_texa

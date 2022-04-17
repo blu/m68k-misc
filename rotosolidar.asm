@@ -60,12 +60,12 @@ fb_h	equ tx0_h
 	dc.l	.start
 .start:
 	endif
-	; disable all vicky engines but text and
+	; disable all vicky engines but text
 	; set channel A to 800x600, text 100x75
 	movea.l	#ea_vicky,a0
 	move.l	hw_vicky_master(a0),d0
-	and.w	#$ffff&(reset_master_mode|%01000001),d0
-	or.w	#set_master_mode_800x600,d0
+	and.w	#$ffff&(reset_master_mode&%01000000),d0
+	or.w	#$ffff&(set_master_mode_800x600|%00000001),d0
 	move.l	d0,hw_vicky_master(a0)
 	; hide border and cursor
 	move.l	hw_vicky_border(a0),d0

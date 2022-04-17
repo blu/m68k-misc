@@ -50,13 +50,14 @@ spins	equ $8000
 	dc.l	start
 start:
 	endif
-	; set channel A to 800x600, text 100x75 fb (8x8 char matrix)
+	; disable all vicky engines but text
+	; set channel A to 800x600, text 100x75
 	movea.l	#ea_vicky,a0
 	move.l	hw_vicky_master(a0),d0
 	move.l	hw_vicky_border(a0),d1
 	move.l	hw_vicky_cursor(a0),d2
-	and.w	#$ffff&reset_master_mode,d0
-	or.w	#set_master_mode_800x600,d0
+	and.w	#$ffff&(reset_master_mode&%01000000),d0
+	or.w	#$ffff&(set_master_mode_800x600|%00000001),d0
 	move.l	d0,hw_vicky_master(a0)
 	and.b	#reset_border_enable,d1
 	move.l	d1,hw_vicky_border(a0)

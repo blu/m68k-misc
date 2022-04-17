@@ -1,4 +1,7 @@
 ; platform A2560K
+ea_vram0 equ $800000
+ea_vram1 equ $c00000
+; NOTE: following EAs are for morfe K; actual K memory map pending
 ea_vicky equ $c40000
 ea_text0 equ $c60000
 ea_texa0 equ $c68000
