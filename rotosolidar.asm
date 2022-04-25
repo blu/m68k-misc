@@ -1113,6 +1113,16 @@ l_dap	equ 18 ; delim arr ptr
 	move.w	(a3)+,d0
 	move.w	(a3)+,d1
 	ifd do_clip
+	cmpi.w	#0,d0
+	bge	.done_min
+	moveq	#0,d0
+.done_min:
+	cmpi.w	#fb_w,d1
+	blt	.done_max
+	move.w	#fb_w-1,d1
+.done_max:
+	cmp.w	d0,d1
+	blt	.next_line
 	endif
 	lea	(a1,d0.w),a0
 	sub.w	d0,d1
