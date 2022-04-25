@@ -20,6 +20,12 @@ alt_memset equ 1
 	fail "alt_memset must be power-of-two between 1 and 16"
 	endif
 
+	ifd do_persp
+	ifnd do_clip
+	fail "do_persp requires do_clip"
+	endif
+	endif
+
 	if alt_plat == 0
 	include	"plat_a2560u.inc"
 	else
@@ -244,11 +250,11 @@ fb_h	equ tx0_h
 	ifd do_persp
 	if target_cpu >= 2
 	; apply perspective for cam looking along -Z
-	subi.l	#95<<14,d2 ; proj plane at 64
+	subi.l	#128<<14,d2
 	neg.l	d2
 
-	asl.l	#6,d0
-	asl.l	#6,d1
+	asl.l	#7,d0
+	asl.l	#7,d1
 	divs.l	d2,d0
 	divs.l	d2,d1
 
@@ -262,11 +268,11 @@ fb_h	equ tx0_h
 	addx.w	d7,d2
 
 	; apply perspective for cam looking along -Z
-	subi.w	#95,d2 ; proj plane at 64
+	subi.w	#128,d2
 	neg.w	d2
 
-	asl.w	#6,d0
-	asl.w	#6,d1
+	asl.w	#7,d0
+	asl.w	#7,d1
 	ext.l	d0
 	ext.l	d1
 	divs.w	d2,d0
