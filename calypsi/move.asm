@@ -8,6 +8,14 @@
 ;	6: 68060
 ; do_clear (define): enforce fb clear at start of frame
 ; do_morfe (define): enforce morfe compatibility
+; alt_memset (numerical, optional): select memset routine for use by paddle routine
+
+	#ifndef alt_memset
+	#define alt_memset 1
+	#endif
+	#if alt_memset < 1 || alt_memset > 16 || (alt_memset & (alt_memset - 1))
+	#error "alt_memset must be power-of-two between 1 and 16"
+	#endif
 
 	#if alt_plat == 0
 	#include "plat_a2560u.inc"
@@ -181,65 +189,21 @@ max_done:
 	adda.l	#ea_texa0+tx0_w*padd_y,a0
 	move.l	#0x41414141,d0
 	moveq.l	#paddlen,d1
+	#if alt_memset == 1
 	jsr	memset1
+	#elif alt_memset == 2
+	jsr	memset2
+	#elif alt_memset == 4
+	jsr	memset4
+	#elif alt_memset == 8
+	jsr	memset8
+	#elif alt_memset == 16
+	jsr	memset16
+	#endif
 	rts
 
-; memset a buffer to a given value; 1B inner loop
-; a0: target
-; d0.b: value
-; d1.l: length; 0 is undefined
-; returns: a0: last_written_address + 1
-memset1:
-	move.b	d0,(a0)+
-	subi.l	#1,d1
-	bne	memset1
-	rts
-
-; clear tx0-sized text channel A
-; a0: pattern ptr
-; clobbers d0-d3, a1
-clear_text0:
-	movem.l	(a0),d0-d3
-	movea.l	#ea_text0,a0
-	lea	(tx0_w*tx0_h)&~15(a0),a1
-1$:
-	movem.l	d0-d3,-(a1)
-	cmpa.l	a0,a1
-	bne	1$
-	rts
-
-; clear tx0-sized attr channel A
-; a0: pattern ptr
-; clobbers d0-d3, a1
-clear_texa0:
-	movem.l (a0),d0-d3
-	movea.l	#ea_texa0,a0
-	lea	(tx0_w*tx0_h)&~15(a0),a1
-1$:
-	movem.l	d0-d3,-(a1)
-	cmpa.l	a0,a1
-	bne	1$
-	rts
-
-; produce ascii from word
-; d0.w: word to print
-; a0: output address
-; clobbers: d1, a1
-print_u16:
-	lea	4(a0),a1
-1$:
-	rol.w	#4,d0
-	move.b	d0,d1
-	andi.b	#0xf,d1
-	addi.b	#'0',d1
-	cmpi.b	#'0'+10,d1
-	bcs	2$
-	addi.b	#'a'-'9'-1,d1
-2$:
-	move.b	d1,(a0)+
-	cmpa.l	a1,a0
-	bcs	1$
-	rts
+	#include "util.inc"
+	#include "memset.inc"
 
 	.align 4
 pattern:
