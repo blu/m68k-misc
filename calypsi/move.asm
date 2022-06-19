@@ -42,8 +42,6 @@ frames	.equ 1<<12
 	; of the current offset for generation of relocatable code
 
 	#ifdef do_morfe
-;	org	0x020000
-
 	; we get injected right into supervisor mode, interrupt-style
 	; demote ourselves to user mode
 	movea.l	#0x080000,a0
@@ -52,8 +50,6 @@ frames	.equ 1<<12
 
 	#else
 	; FoenixMCP PGX header
-;	org	0x010000
-
 	.byte	"PGX", 0x02
 	.long	start
 start:

@@ -1,5 +1,5 @@
 (define memories
-  '((memory RAM (address (#x010000 . #x3FFFFF))
+  '((memory RAM (address (#x020000 . #x3FFFFF))
 		(section code)
 		(type RAM))
     ))
