@@ -464,14 +464,8 @@ vsync_spin$:
 	lea	(tx0_h*tx0_w)&~31(a1),a2
 loopp$:
 	movem.l	(a0)+,d0-d7
-	move.l	d0,(a1)+
-	move.l	d1,(a1)+
-	move.l	d2,(a1)+
-	move.l	d3,(a1)+
-	move.l	d4,(a1)+
-	move.l	d5,(a1)+
-	move.l	d6,(a1)+
-	move.l	d7,(a1)+
+	movem.l d0-d7,(a1)
+	lea	8*4(a1),a1
 	cmpa.l	a1,a2
 	bne	loopp$
 
