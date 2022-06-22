@@ -1,5 +1,6 @@
 ; platform A2560U
 ea_vicky equ $b40000
+ea_lut0  equ $b42000
 ea_text  equ $b60000
 ea_texa  equ $b68000
 ea_palfg equ $b6c400
@@ -13,9 +14,15 @@ ea_palf0 equ ea_palfg
 ea_palb0 equ ea_palbg
 
 ; some hw regs
-hw_vicky_master equ $0000
-hw_vicky_border equ $0004
-hw_vicky_cursor equ $0010
+hw_vicky_master  equ $0000
+hw_vicky_border  equ $0004
+hw_vicky_bdcolor equ $0008
+hw_vicky_bgcolor equ $000c
+hw_vicky_cursor  equ $0010
+hw_vky_bmp0_ctl  equ $0100
+hw_vky_bmp0_addr equ $0104
+hw_vky_bmp1_ctl  equ $0108
+hw_vky_bmp1_addr equ $010c
 
 ; some fields in hw regs
 pos_master_text   equ $0
@@ -26,6 +33,9 @@ msk_master_ovrly  equ $1
 
 pos_master_graph  equ $2
 msk_master_graph  equ $1
+
+pos_master_bitmap equ $3
+msk_master_bitmap equ $1
 
 pos_master_mode   equ $8
 msk_master_mode   equ $7
@@ -38,6 +48,9 @@ msk_border_enable equ $1
 
 pos_cursor_enable equ $0
 msk_cursor_enable equ $1
+
+pos_bmp_enable    equ $0
+msk_bmp_enable    equ $1
 
 ; some values in fields in hw regs
 master_mode_640x480 equ %000
@@ -55,6 +68,7 @@ reset_master_mode equ reserved_master
 set_master_text   equ msk_master_text  << pos_master_text
 set_master_ovrly  equ msk_master_ovrly << pos_master_ovrly
 set_master_graph  equ msk_master_graph << pos_master_graph
+set_master_bitmap equ msk_master_bitmap << pos_master_bitmap
 
 set_master_mode_640x480 equ ((msk_master_mode & master_mode_640x480) << pos_master_mode) | ((msk_master_clk & master_clk_25mhz) << pos_master_clk)
 set_master_mode_800x600 equ ((msk_master_mode & master_mode_800x600) << pos_master_mode) | ((msk_master_clk & master_clk_40mhz) << pos_master_clk)
@@ -66,3 +80,9 @@ set_border_enable   equ msk_border_enable << pos_border_enable
 
 reset_cursor_enable equ ~(msk_cursor_enable << pos_cursor_enable)
 set_cursor_enable   equ msk_cursor_enable << pos_cursor_enable
+
+reserved_vky_bmp    equ %1111111110110000
+reset_vky_bmp       equ reserved_vky_bmp
+
+reset_bmp_enable    equ ~(msk_bmp_enable << pos_bmp_enable)
+set_bmp_enable      equ msk_bmp_enable << pos_bmp_enable

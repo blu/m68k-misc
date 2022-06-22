@@ -103,7 +103,7 @@
 	bcs	.tail0\@
 
 	btst	#1,d2
-	beq	.head1
+	beq	.head1\@
 	move.w	d0,(a0)+
 	addi.l	#2,d2
 	subi.w	#2,d1
@@ -112,7 +112,7 @@
 	bcs	.tail1\@
 
 	btst	#2,d2
-	beq	.head2
+	beq	.head2\@
 	move.l	d0,(a0)+
 ;	addi.l	#4,d2 ; for higher alignmen versions
 	subi.w	#4,d1

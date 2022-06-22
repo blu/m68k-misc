@@ -34,7 +34,7 @@ alt_memset equ 1
 
 	include "memset_inl.inc"
 
-ea_bfb	equ $3fc000
+ea_bfb	equ $3a0000
 
 tx0_w	equ 100
 tx0_h	equ 75
@@ -42,8 +42,8 @@ tx0_h	equ 75
 tx1_w	equ 80
 tx1_h	equ 60
 
-fb_w	equ tx0_w
-fb_h	equ tx0_h
+fb_w	equ 128
+fb_h	equ 110
 
 	; we want absolute addresses -- with moto/vasm that means
 	; just use org; don't use sections as they cause resetting
@@ -60,19 +60,33 @@ fb_h	equ tx0_h
 
 	else
 	; FoenixMCP PGX header
-	org	$10000
+	org	$020000
 
 	dc.b	"PGX", $02
 	dc.l	.start
 .start:
 	endif
-	; disable all vicky engines but text
-	; set channel A to 800x600, text 100x75
+	; disable all vicky engines but graphics and bitmap
+	; set channel A to 640x480
 	movea.l	#ea_vicky,a0
 	move.l	hw_vicky_master(a0),d0
-	and.w	#$ffff&(reset_master_mode&%01000000),d0
-	or.w	#$ffff&(set_master_mode_800x600|%00000001),d0
+	and.w	#$ffff&(reset_master_mode),d0
+	or.w	#$ffff&(set_master_graph|set_master_bitmap|set_master_mode_640x480),d0
 	move.l	d0,hw_vicky_master(a0)
+	; set bitmap0 addr and enable it
+	move.l	#0,hw_vky_bmp0_addr(a0)
+	move.l	hw_vky_bmp0_ctl(a0),d1
+	and.w	#$ffff&(reset_vky_bmp),d1
+	or.w	#$ffff&(set_bmp_enable),d1
+	move.l	d1,hw_vky_bmp0_ctl(a0)
+	if 0
+	; set bitmap1 addr and enable it
+	move.l	#320*240,hw_vky_bmp1_addr(a0)
+	move.l	hw_vky_bmp1_ctl(a0),d1
+	and.w	#$ffff&(reset_vky_bmp),d1
+	or.w	#$ffff&(set_bmp_enable),d1
+	move.l	d1,hw_vky_bmp1_ctl(a0)
+	endif
 	; hide border and cursor
 	move.l	hw_vicky_border(a0),d0
 	and.b	#reset_border_enable,d0
@@ -80,6 +94,8 @@ fb_h	equ tx0_h
 	move.l	hw_vicky_cursor(a0),d0
 	and.b	#reset_cursor_enable,d0
 	move.l	d0,hw_vicky_cursor(a0)
+	; set BG color
+	move.l	#$ff008080,hw_vicky_bgcolor(a0)
 
 	ifnd do_morfe
 	; disable all group0 interrupts (yes, that's lame)
@@ -302,7 +318,7 @@ fb_h	equ tx0_h
 
 	ifd do_clear
 	; clear channel A -- colors
-	move.l	#$70707070,d0
+	moveq	#0,d0
 	move.l	d0,d1
 	move.l	d0,d2
 	move.l	d0,d3
@@ -311,7 +327,8 @@ fb_h	equ tx0_h
 	move.l	d0,d6
 	move.l	d0,d7
 	movea.l	#ea_bfb,a0
-	lea	(fb_w*fb_h)&~31(a0),a1
+	movea.l	a0,a1
+	adda.l	#(fb_w*fb_h)&~31,a1
 .loop:
 	movem.l	d0-d7,-(a1)
 	cmpa.l	a0,a1
@@ -321,7 +338,7 @@ fb_h	equ tx0_h
 	movea.l	#ea_bfb,a4
 	lea	tri_obj_0,a5
 	lea	tri_idx_0,a6
-	move.b	#$40,color
+	move.b	#$70,color
 .tri:
 	lea	tri_scr_0,a3
 	if alt_memset == 1
@@ -423,22 +440,27 @@ fb_h	equ tx0_h
 	move.b	#0,flag_sof
 	endif
 
-	; copy back-fb content to front-fb -- tx0
+	; copy back-fb content to front-fb
 	movea.l	#ea_bfb,a0
-	movea.l #ea_texa0,a1
-	lea	(tx0_h*tx0_w)&~31(a1),a2
+	movea.l #ea_vram0+320-fb_w/2+(240-fb_h/2)*640,a1
+	movea.l	a1,a2
+	adda.l	#(640*fb_h),a2
 .loopp:
+	; fixme: fb_w is assumed to be 128
 	movem.l	(a0)+,d0-d7
-	move.l	d0,(a1)+
-	move.l	d1,(a1)+
-	move.l	d2,(a1)+
-	move.l	d3,(a1)+
-	move.l	d4,(a1)+
-	move.l	d5,(a1)+
-	move.l	d6,(a1)+
-	move.l	d7,(a1)+
+	movem.l	d0-d7,(a1)
+	lea	8*4(a1),a1
+	movem.l	(a0)+,d0-d7
+	movem.l	d0-d7,(a1)
+	lea	8*4(a1),a1
+	movem.l	(a0)+,d0-d7
+	movem.l	d0-d7,(a1)
+	lea	8*4(a1),a1
+	movem.l	(a0)+,d0-d7
+	movem.l	d0-d7,(a1)
+	lea	640-fb_w+8*4(a1),a1
 	cmpa.l	a1,a2
-	bne	.loopp
+	bhi	.loopp
 
 	; update animation param and print frame idx
 	addi.w	#1,angle
