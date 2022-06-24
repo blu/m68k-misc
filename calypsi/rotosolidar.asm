@@ -462,10 +462,11 @@ vsync_spin$:
 	movea.l	#ea_bfb,a0
 	movea.l #ea_texa0,a1
 	lea	(tx0_h*tx0_w)&~31(a1),a2
+	movea.l	#8*4,a3
 loopp$:
 	movem.l	(a0)+,d0-d7
 	movem.l d0-d7,(a1)
-	lea	8*4(a1),a1
+	adda.l	a3,a1
 	cmpa.l	a1,a2
 	bne	loopp$
 

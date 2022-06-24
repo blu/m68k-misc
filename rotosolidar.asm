@@ -445,20 +445,22 @@ fb_h	equ 110
 	movea.l #ea_vram0+320-fb_w/2+(240-fb_h/2)*640,a1
 	movea.l	a1,a2
 	adda.l	#(640*fb_h),a2
+	movea.l	#8*4,a3
+	movea.l	#640-fb_w+8*4,a4
 .loopp:
 	; fixme: fb_w is assumed to be 128
 	movem.l	(a0)+,d0-d7
 	movem.l	d0-d7,(a1)
-	lea	8*4(a1),a1
+	adda.l	a3,a1
 	movem.l	(a0)+,d0-d7
 	movem.l	d0-d7,(a1)
-	lea	8*4(a1),a1
+	adda.l	a3,a1
 	movem.l	(a0)+,d0-d7
 	movem.l	d0-d7,(a1)
-	lea	8*4(a1),a1
+	adda.l	a3,a1
 	movem.l	(a0)+,d0-d7
 	movem.l	d0-d7,(a1)
-	lea	640-fb_w+8*4(a1),a1
+	adda.l	a4,a1
 	cmpa.l	a1,a2
 	bhi	.loopp
 
